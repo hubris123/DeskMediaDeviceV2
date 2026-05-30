@@ -1,0 +1,9 @@
+Command: C:\Espressif\tools\python\v5.5.4\venv\Scripts\python.exe C:\esp\v5.5.4\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32p4 --revision 1 --decode-panic backtrace C:\Users\Administrator\Documents\DeskMediaDeviceV2\build\lvgl_demo_v9.elf C:\Users\Administrator\Documents\DeskMediaDeviceV2\build\bootloader\bootloader.elf --force-color -m 'C:\Espressif\tools\python\v5.5.4\venv\Scripts\python.exe' 'C:\esp\v5.5.4\esp-idf\tools\idf.py' '-p' 'COM4'
+[0;33m--- Warning: GDB cannot open serial ports accessed as COMx[0m
+[0;33m--- Using \\.\COM4 instead...[0m
+[0;33m--- esp-idf-monitor 1.9.0 on \\.\COM4 115200[0m
+[0;33m--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H[0m
+[0m--- 0x4ff29ed0: [0;33mspi_flash_chip_generic_read[0m[0m at [0;32mC:/esp/v5.5.4/esp-idf/components/spi_flash/spi_flash_chip_generic.c[0m[0m:[1;31m290[0m
+[0m--- 0x4ff2cbd0: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/esp/v5.5.4/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x4ff29eda: [0;33mspi_flash_chip_generic_write[0m[0m at [0;32mC:/esp/v5.5.4/esp-idf/components/spi_flash/spi_flash_chip_generic.c[0m[0m:[1;31m335[0m
+[0m

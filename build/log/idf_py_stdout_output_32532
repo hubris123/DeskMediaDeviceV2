@@ -1,0 +1,133 @@
+Command: C:\Espressif\tools\python\v5.5.4\venv\Scripts\python.exe C:\esp\v5.5.4\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32p4 --revision 1 --decode-panic backtrace C:\Users\Administrator\Documents\DeskMediaDeviceV2\build\lvgl_demo_v9.elf C:\Users\Administrator\Documents\DeskMediaDeviceV2\build\bootloader\bootloader.elf --force-color -m 'C:\Espressif\tools\python\v5.5.4\venv\Scripts\python.exe' 'C:\esp\v5.5.4\esp-idf\tools\idf.py' '-p' 'COM4'
+ESP-ROM:esp32p4-eco2-202407ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0x1 (POWERON),boot:0x30f (SPI_FAST_FLASH_BOOT)
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x173c
+load:0x4ff29ed0,len:0xff0
+load:0x4ff2cbd0,len:0x3608
+entry 0x4ff29eda
+[0;32mI (26) boot: ESP-IDF v5.5.4 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time May 30 2026 06:25:37[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (28) boot: chip revision: v1.3[0m
+[0;32mI (29) boot: efuse block revision: v0.3[0m
+[0;32mI (32) qio_mode: Enabling default flash chip QIO[0m
+[0;32mI (37) boot.esp32p4: SPI Speed      : 80MHz[0m
+[0;32mI (41) boot.esp32p4: SPI Mode       : QIO[0m
+[0;32mI (44) boot.esp32p4: SPI Flash Size : 32MB[0m
+[0;32mI (48) boot: Enabling RNG early entropy source...[0m
+[0;32mI (53) boot: Partition Table:[0m
+[0;32mI (55) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (62) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (68) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (75) boot:  2 factory          factory app      00 00 00010000 00800000[0m
+[0;32mI (81) boot:  3 storage          Unknown data     01 82 00810000 00700000[0m
+[0;32mI (89) boot: End of partition table[0m
+[0;32mI (91) esp_image: segment 0: paddr=00010020 vaddr=48080020 size=22288h (139912) map[0m
+[0;32mI (119) esp_image: segment 1: paddr=000322b0 vaddr=30100000 size=00068h (   104) load[0m
+[0;32mI (121) esp_image: segment 2: paddr=00032320 vaddr=4ff00000 size=0dcf8h ( 56568) load[0m
+[0;32mI (134) esp_image: segment 3: paddr=00040020 vaddr=48000020 size=7e5e0h (517600) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000be608 vaddr=4ff0dcf8 size=1cef0h (118512) load[0m
+[0;32mI (230) esp_image: segment 5: paddr=000db500 vaddr=4ff2ac00 size=00458h (  1112) load[0m
+[0;32mI (232) esp_image: segment 6: paddr=000db960 vaddr=4ff40000 size=040c0h ( 16576) load[0m
+[0;32mI (238) esp_image: segment 7: paddr=000dfa28 vaddr=50108080 size=00020h (    32) load[0m
+[0;32mI (251) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (251) boot: Disabling RNG early entropy source...[0m
+[0;32mI (264) hex_psram: vendor id    : 0x0d (AP)[0m
+[0;32mI (264) hex_psram: Latency      : 0x01 (Fixed)[0m
+[0;32mI (265) hex_psram: DriveStr.    : 0x00 (25 Ohm)[0m
+[0;32mI (265) hex_psram: dev id       : 0x03 (generation 4)[0m
+[0;32mI (270) hex_psram: density      : 0x07 (256 Mbit)[0m
+[0;32mI (274) hex_psram: good-die     : 0x06 (Pass)[0m
+[0;32mI (278) hex_psram: SRF          : 0x02 (Slow Refresh)[0m
+[0;32mI (283) hex_psram: BurstType    : 0x00 ( Wrap)[0m
+[0;32mI (287) hex_psram: BurstLen     : 0x03 (2048 Byte)[0m
+[0;32mI (292) hex_psram: BitMode      : 0x01 (X16 Mode)[0m
+[0;32mI (296) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)[0m
+[0;32mI (301) hex_psram: DriveStrength: 0x00 (1/1)[0m
+[0;32mI (305) MSPI Timing: Enter psram timing tuning[0m
+I esp_psram: Found 32MB PSRAM device
+I esp_psram: Speed: 200MHz
+[0;32mI (486) mmu_psram: .rodata xip on psram[0m
+[0;32mI (511) mmu_psram: .text xip on psram[0m
+[0;32mI (511) hex_psram: psram CS IO is dedicated[0m
+[0;32mI (512) cpu_start: Multicore app[0m
+[0;32mI (982) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (992) cpu_start: GPIO 38 and 37 are used as console UART I/O pins[0m
+[0;32mI (992) cpu_start: Pro cpu start user code[0m
+[0;32mI (992) cpu_start: cpu freq: 360000000 Hz[0m
+[0;32mI (994) app_init: Application information:[0m
+[0;32mI (998) app_init: Project name:     lvgl_demo_v9[0m
+[0;32mI (1002) app_init: App version:      e41d598-dirty[0m
+[0;32mI (1007) app_init: Compile time:     May 30 2026 06:25:16[0m
+[0;32mI (1012) app_init: ELF file SHA256:  c56ee205d...[0m
+[0;32mI (1016) app_init: ESP-IDF:          v5.5.4[0m
+[0;32mI (1020) efuse_init: Min chip rev:     v0.1[0m
+[0;32mI (1024) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (1028) efuse_init: Chip rev:         v1.3[0m
+[0;32mI (1032) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1039) heap_init: At 4FF2B060 len 0000FF60 (63 KiB): RETENT_RAM[0m
+[0;32mI (1044) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM[0m
+[0;32mI (1050) heap_init: At 4FF45F80 len 0003A080 (232 KiB): RAM[0m
+[0;32mI (1055) heap_init: At 501080A0 len 00007F60 (31 KiB): RTCRAM[0m
+[0;32mI (1060) heap_init: At 30100068 len 00001F98 (7 KiB): TCM[0m
+[0;32mI (1066) esp_psram: Adding pool of 32064K of PSRAM memory to heap allocator[0m
+[0;32mI (1072) esp_psram: Adding pool of 6K of PSRAM memory gap generated due to end address alignment of irom to the heap allocator[0m
+[0;32mI (1083) esp_psram: Adding pool of 55K of PSRAM memory gap generated due to end address alignment of drom to the heap allocator[0m
+[0;32mI (1095) spi_flash: detected chip: gd[0m
+[0;32mI (1098) spi_flash: flash io: qio[0m
+[0;32mI (1101) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (1107) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (1114) main_task: Started on CPU0[0m
+[0;32mI (1118) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1125) main_task: Calling app_main()[0m
+[0;32mI (1132) DeskMediaDevice: Starting Desk Media Device[0m
+[0;33mW (1133) ldo: The voltage value 0 is out of the recommended range [500, 2700][0m
+[0;32mI (1182) DeskMediaDevice: SD card mounted successfully at /sdcard[0m
+[0;32mI (1182) DeskMediaDevice: Found PCM file: /sdcard/CANON.PCM[0m
+[0;32mI (1182) DeskMediaDevice: Found WAV file: /sdcard/CANON.WAV[0m
+[0;32mI (1187) DeskMediaDevice: Found 2 audio file(s) on SD card[0m
+[0;32mI (1192) esp_lvgl:adapter: LVGL adapter initialized successfully[0m
+[0;33mW (1198) ledc: GPIO 26 is not usable, maybe conflict with others[0m
+[0;32mI (1204) ESP32_P4_4_3: MIPI DSI PHY Powered on[0m
+[0;32mI (1209) ESP32_P4_4_3: Install MIPI DSI LCD control panel[0m
+[0;32mI (1213) ESP32_P4_4_3: Install Waveshare ESP32-P4-WIFI6-Touch-LCD-4B LCD control panel[0m
+[0;32mI (1221) st7701: version: 2.0.2[0m
+[0;32mI (1257) st7701_mipi: LCD ID: FF FF FF[0m
+[0;32mI (1257) st7701_mipi:  st7701->madctl_val: 0x0, st7701->colmod_val: 0x55[0m
+[0;32mI (1377) ESP32_P4_4_3: Display initialized[0m
+[0;32mI (1379) esp_lvgl:bridge_v9: Initializing hardware resources[0m
+[0;32mI (1379) esp_lvgl:bridge_v9: Hardware resources initialized successfully[0m
+[0;33mW (1381) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs[0m
+[0;32mI (1397) ESP32_P4_4_3: Touch 0x5d found[0m
+[0;32mI (1500) GT911: I2C address initialization procedure skipped - using default GT9xx setup[0m
+[0;32mI (1520) GT911: TouchPad_ID:0x39,0x31,0x31[0m
+[0;32mI (1520) GT911: TouchPad_Config_Version:65[0m
+[0;32mI (1520) esp_lvgl:touch: Touch input device registered successfully (IRQ mode: disabled)[0m
+[0;32mI (1525) esp_lvgl:bridge: Initializing hardware resources[0m
+[0;32mI (1530) esp_lvgl:bridge: Hardware resources initialized successfully[0m
+[0;32mI (1536) esp_lvgl:adapter: LVGL task started successfully[0m
+[0;32mI (1544) DeskMediaDevice: Initialization complete[0m
+[0;32mI (15104) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (16139) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (17294) DeskMediaDevice: Audio stopped[0m
+[0;32mI (20054) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (20894) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (22784) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (25454) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (26129) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (26729) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (27299) DeskMediaDevice: Audio stopped[0m
+[0;32mI (27824) DeskMediaDevice: Audio stopped[0m
+[0;32mI (28334) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (28739) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (29069) DeskMediaDevice: Audio stopped[0m
+[0;32mI (29519) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (29969) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (30824) DeskMediaDevice: Audio stopped[0m
+[0;32mI (31304) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (31754) DeskMediaDevice: Play WAV button pressed - audio integration coming soon[0m
+[0;32mI (32189) DeskMediaDevice: Audio stopped[0m
+[0;32mI (32654) DeskMediaDevice: Play PCM button pressed - audio integration coming soon[0m
+[0;32mI (35414) DeskMediaDevice: Audio stopped[0m
