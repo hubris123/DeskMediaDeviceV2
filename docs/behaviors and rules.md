@@ -154,17 +154,23 @@ git log --oneline -10 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -Fi
 
 ### Git Log Backup Protocol
 
-After each git command session, back up all git log files to the archive:
+**MANDATORY: After EVERY git commit/push sequence, Claude must:**
+1. Check git_combined_log.txt for success (look for commit hash and successful push)
+2. Back up the log file to `backup/` with timestamp
+3. Delete the original from `claudetransferv2/`
+4. Then proceed to next step
 
-```powershell
-# Backup all git_*.txt files with Unix timestamp
+**Claude's automatic process:**
+```bash
+# After successful git push, always run:
+cd claudetransferv2
 TIMESTAMP=$(date +%s)
-foreach ($f in Get-ChildItem "claudetransferv2\git_*.txt") {
-    Move-Item $f.FullName "claudetransferv2\backup\$($f.BaseName)_attempt_${TIMESTAMP}.txt"
-}
+mv git_combined_log.txt "backup/git_combined_log_attempt_${TIMESTAMP}.txt"
 ```
 
 This preserves a complete history of all git operations with timestamps, parallel to build/flash/monitor log backups.
+
+**Why this matters:** Git logs get stale quickly. Archiving them with timestamps keeps the working directory clean and prevents confusion between old and new operations.
 
 ### Build Error Triage Process
 
