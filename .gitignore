@@ -1,0 +1,8 @@
+# Build output
+build/
+
+# Local file transfer folder (not tracked in git)
+claudetransferv2/
+
+# Logs
+*.log
