@@ -189,7 +189,8 @@ git commit -m "Fix audio initialization"
 
 | File | Location |
 |------|----------|
-| All 6 tool scripts | `DeskMediaDeviceV2/` root |
+| All .bat tool scripts | `DeskMediaDeviceV2/scripts/` |
+| All .ps1 workflow scripts | `DeskMediaDeviceV2/` root |
 | Filtered outputs | `claudetransferv2/` |
 | Log backups | `claudetransferv2/backup/` |
 | Patterns registry | `DeskMediaDeviceV2/CONSOLE_PATTERNS_REGISTRY.md` |

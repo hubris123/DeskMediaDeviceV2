@@ -113,6 +113,21 @@ If you need to attach monitor to an already-running device without resetting it:
 idf.py -p COM4 monitor --no-reset 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\monitor_log.txt" -Encoding UTF8
 ```
 
+### Workflow Scripts
+
+All build workflow scripts are located in the `scripts/` folder at project root:
+- `preflight_and_clean.ps1` — Preflight check + fullclean (in project root, calls scripts)
+- `build.ps1` — Build + parse logs (in project root, calls scripts)
+- `flash.ps1` — Flash + parse logs (in project root, calls scripts)
+- `monitor.ps1` — Monitor + filter logs (in project root, calls scripts)
+
+All `.bat` utility scripts are located in `scripts/`:
+- `preflight_check.bat` — Verify build readiness
+- `parse_logs.bat` — Extract errors/warnings from logs
+- `filter_monitor.bat` — Extract critical messages from monitor output
+- `summarize_diff.bat` — Summarize git diffs
+- `cleanup_build_artifacts.bat` — Clean object file noise from logs
+
 ### Git Commands with Logging
 
 Git commands should follow the same logging format:
