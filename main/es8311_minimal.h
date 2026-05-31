@@ -1,0 +1,80 @@
+#pragma once
+
+#include "esp_err.h"
+#include "driver/i2c_master.h"
+
+#define ES8311_ADDR 0x18
+
+// Register addresses
+#define REG00_RESET                    0x00
+#define REG01_CLK_MANAGER              0x01
+#define REG02_CLK_MANAGER              0x02
+#define REG03_CLK_MANAGER              0x03
+#define REG04_CLK_MANAGER              0x04
+#define REG05_CLK_MANAGER              0x05
+#define REG06_CLK_MANAGER              0x06
+#define REG07_CLK_MANAGER              0x07
+#define REG08_CLK_MANAGER              0x08
+#define REG09_CLK_MANAGER              0x09
+#define REG0A_CLK_MANAGER              0x0a
+#define REG0B_CLK_MANAGER              0x0b
+#define REG0C_CLK_MANAGER              0x0c
+#define REG0D_CLK_MANAGER              0x0d
+#define REG0E_CLK_MANAGER              0x0e
+#define REG0F_CLK_MANAGER              0x0f
+#define REG10_CHIP_ID1                 0x10
+#define REG11_CHIP_ID2                 0x11
+#define REG12_CHIP_VER                 0x12
+#define REG13_SDP                      0x13
+#define REG14_SDPO                     0x14
+#define REG15_DAC_OSR                  0x15
+#define REG16_ADC_OSR                  0x16
+#define REG17_ST_RESET                 0x17
+#define REG18_INT_ST1                  0x18
+#define REG19_INT_ST2                  0x19
+#define REG1A_INT_ST3                  0x1a
+#define REG1B_INT_ST4                  0x1b
+#define REG1C_GPIO_FLAG1               0x1c
+#define REG1D_GPIO_FLAG2               0x1d
+#define REG1E_GPIO_FLAG3               0x1e
+#define REG1F_GPIO_FLAG4               0x1f
+#define REG20_SDP_ADDR_P               0x20
+#define REG21_SDP_ADDR_H               0x21
+#define REG22_SDP_ADDR_L               0x22
+#define REG23_SDP_DATA_H               0x23
+#define REG24_SDP_DATA_L               0x24
+#define REG25_ADC_POWER                0x25
+#define REG26_ADC_POWER                0x26
+#define REG27_DAC_POWER                0x27
+#define REG28_DAC_POWER                0x28
+#define REG29_DAC_VOL_LEFT             0x29
+#define REG2A_DAC_VOL_RIGHT            0x2a
+#define REG2B_DAC_VOL_RAMP             0x2b
+#define REG2C_DAC_VOL_RAMP             0x2c
+#define REG2D_DRC_HARD_LIM             0x2d
+#define REG2E_DRC_HARD_LIM             0x2e
+#define REG2F_DRC_HARD_LIM             0x2f
+#define REG30_DRC_HARD_LIM             0x30
+#define REG31_DRC_HARD_LIM             0x31
+#define REG32_DRC_HARD_LIM             0x32
+#define REG33_DRC_HARD_LIM             0x33
+#define REG34_ADC_EQUALIZER            0x34
+#define REG35_ADC_EQUALIZER            0x35
+#define REG36_ADC_EQUALIZER            0x36
+#define REG37_ADC_EQUALIZER            0x37
+#define REG38_ADC_EQUALIZER            0x38
+#define REG39_ADC_EQUALIZER            0x39
+#define REG3A_ADC_EQUALIZER            0x3a
+#define REG3B_ADC_EQUALIZER            0x3b
+#define REG3C_ADC_EQUALIZER            0x3c
+#define REG3D_DAC_EQUALIZER            0x3d
+#define REG3E_DAC_EQUALIZER            0x3e
+#define REG3F_DAC_EQUALIZER            0x3f
+#define REG40_DAC_EQUALIZER            0x40
+#define REG41_DAC_EQUALIZER            0x41
+#define REG42_DAC_EQUALIZER            0x42
+#define REG43_DAC_EQUALIZER            0x43
+#define REG44_DAC_EQUALIZER            0x44
+#define REG45_GP                       0x45
+
+esp_err_t es8311_minimal_init(i2c_master_dev_handle_t i2c_dev);
