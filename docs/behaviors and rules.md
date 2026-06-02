@@ -160,21 +160,36 @@ git status 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "cla
 git log --oneline -10 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_log.txt" -Encoding UTF8
 ```
 
-### Git Log Backup Protocol
+### Git Log Backup Protocol (MANDATORY FOR CLAUDE)
 
-**MANDATORY: After EVERY git commit/push sequence, Claude must:**
-1. Check git_combined_log.txt for success (look for commit hash and successful push)
-2. Back up the log file to `backup/` with timestamp
-3. Delete the original from `claudetransferv2/`
-4. Then proceed to next step
+**After EVERY git commit/push sequence:**
 
-**Claude's automatic process:**
+1. **User says "done"** → Claude READS git_combined_log.txt
+2. **Claude VERIFIES success:**
+   - Look for commit hash line: `[main XXXXX] Commit message`
+   - Look for push confirmation: `XXXXX..YYYYY main -> main`
+   - Check for errors: NO lines starting with `fatal:` or `error:`
+3. **Claude REPORTS to user:** "Commit successful (hash XXXXX). Backing up logs."
+4. **Only THEN:** Back up log file to `backup/` with timestamp
+5. **Then:** Delete original from `claudetransferv2/`
+6. **Finally:** Proceed to next step
+
+**Example verification:**
+```
+✅ Good: [main 73036fd] Update rules - add combined git...
+✅ Good:    73036fd..61dbba3  main -> main
+❌ Bad:  fatal: pathspec 'docs/behaviors\' did not match
+❌ Bad:  Everything up-to-date (means nothing was committed)
+```
+
+**Backup script (after verification passes):**
 ```bash
-# After successful git push, always run:
 cd claudetransferv2
 TIMESTAMP=$(date +%s)
 mv git_combined_log.txt "backup/git_combined_log_attempt_${TIMESTAMP}.txt"
 ```
+
+**CRITICAL:** Never skip the verification step. Silent git failures waste time.
 
 This preserves a complete history of all git operations with timestamps, parallel to build/flash/monitor log backups.
 
