@@ -90,27 +90,36 @@ After completing a major feature or reaching a stable milestone:
 3. If memory or linker constraints are tight, this becomes a hard gate—document it
 4. Lock in the stable state before attempting experimental changes
 
-### Build and Flash Commands
+### Build and Flash Commands (Use PowerShell Workflows)
+
+**ALWAYS use the .ps1 workflow scripts. They handle logging, parsing, and error checking automatically.**
 
 ```powershell
-idf.py fullclean 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\clean_log.txt" -Encoding UTF8
+# Complete test cycle (from project root):
+.\preflight_and_clean.ps1    # Preflight check + fullclean, logs to claudetransferv2\
+.\build.ps1                  # Build + auto-parse for errors, logs to claudetransferv2\
+.\flash.ps1                  # Flash + auto-parse for errors, logs to claudetransferv2\
+# Manually power-cycle device (CRITICAL: unplug/replug or press RST button)
+.\monitor.ps1                # Monitor + filter critical messages, logs to claudetransferv2\
 ```
 
+**CRITICAL: FLASH AND MONITOR MUST NOT RUN TOGETHER**
+The ST7701S display chip stays powered during soft reset (EN pin toggle). If flash and monitor run in one command (`idf.py -p COM4 flash monitor`), the device resets twice:
+1. Once during flash (resets ESP32 AND display correctly)
+2. Again during monitor (resets ESP32 only, display stays in confused state → blank screen)
+
+**Solution:** Flash separately, then manually power-cycle device, then run monitor with `--no-reset` flag (which the .ps1 script does automatically).
+
+**Raw command reference (if not using .ps1):**
 ```powershell
-idf.py build 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\build_log.txt" -Encoding UTF8
-```
-
-**IMPORTANT: Always use the combined flash+monitor command. Never run flash and monitor as separate commands.**
-The ST7701S display chip stays powered during a soft reset (EN pin toggle). When monitor runs separately it resets the ESP32 but not the display, causing a blank screen. The combined command resets once during flash and monitor captures the boot immediately — no second reset.
-
-```powershell
-idf.py -p COM4 flash monitor 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\monitor_log.txt" -Encoding UTF8
-```
-
-If you need to attach monitor to an already-running device without resetting it:
-
-```powershell
+idf.py -p COM4 flash 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\flash_log.txt" -Encoding UTF8
+# THEN: Manually power-cycle device (unplug/replug or RST button)
 idf.py -p COM4 monitor --no-reset 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\monitor_log.txt" -Encoding UTF8
+```
+
+**Do NOT do this:**
+```powershell
+idf.py -p COM4 flash monitor   # ❌ WRONG — causes blank screen
 ```
 
 ### Workflow Scripts
@@ -130,25 +139,24 @@ All `.bat` utility scripts are located in `scripts/`:
 
 ### Git Commands with Logging
 
-Git commands should follow the same logging format:
+**ALWAYS use combined add+commit+push in one command to reduce back-and-forth.**
+
+Chain them with semicolons and use `-Append` for commit and push:
+
+```powershell
+git add "files/you/modified" 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_combined_log.txt" -Encoding UTF8; git commit -m "Your commit message" 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_combined_log.txt" -Encoding UTF8 -Append; git push origin main 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_combined_log.txt" -Encoding UTF8 -Append
+```
+
+This single line:
+- Adds files to staging
+- Commits with message
+- Pushes to GitHub
+- Logs all output to ONE combined log file for easy review
+
+**Individual commands (if needed):**
 
 ```powershell
 git status 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_status_log.txt" -Encoding UTF8
-```
-
-```powershell
-git add -A 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_add_log.txt" -Encoding UTF8
-```
-
-```powershell
-git commit -m "Your message here" 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_commit_log.txt" -Encoding UTF8
-```
-
-```powershell
-git push origin main 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_push_log.txt" -Encoding UTF8
-```
-
-```powershell
 git log --oneline -10 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\git_log.txt" -Encoding UTF8
 ```
 
