@@ -17,7 +17,7 @@ void GUI_initScreen__home() {
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__weatherwidget, LV_ALIGN_CENTER);
   lv_obj_set_x(GUI_Container__home__weatherwidget, -282);
-  lv_obj_set_size(GUI_Container__home__weatherwidget, 232, 475);
+  lv_obj_set_size(GUI_Container__home__weatherwidget, 248, 497);
 
   GUI_Panel__home__weather_panel =
       lv_obj_create(GUI_Container__home__weatherwidget);
@@ -599,6 +599,63 @@ void GUI_initScreen__home() {
   lv_obj_set_size(GUI_Image__home__SETTINGSBUTTON, LV_SIZE_CONTENT,
                   LV_SIZE_CONTENT);
 
+  GUI_Container__home__music_player = lv_obj_create(GUI_Screen__home);
+  lv_obj_remove_style_all(GUI_Container__home__music_player);
+  lv_obj_remove_flag(GUI_Container__home__music_player, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(GUI_Container__home__music_player, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Container__home__music_player, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Container__home__music_player, -132, 115);
+  lv_obj_set_size(GUI_Container__home__music_player, 77, 242);
+
+  GUI_Panel__home__panel_3 = lv_obj_create(GUI_Container__home__music_player);
+  lv_obj_remove_flag(GUI_Panel__home__panel_3, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Panel__home__panel_3, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Panel__home__panel_3, 60, 210);
+
+  GUI_Button__home__buttonup = lv_button_create(GUI_Panel__home__panel_3);
+  lv_obj_set_align(GUI_Button__home__buttonup, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Button__home__buttonup, 44, 44);
+
+  GUI_Image__home__image_34 = lv_image_create(GUI_Button__home__buttonup);
+  lv_obj_add_flag(GUI_Image__home__image_34, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__home__image_34, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__home__image_34, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Image__home__image_34, -4, -6);
+  lv_obj_set_size(GUI_Image__home__image_34, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+
+  GUI_Button__home__buttonplay = lv_button_create(GUI_Panel__home__panel_3);
+  lv_obj_set_align(GUI_Button__home__buttonplay, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Button__home__buttonplay, 20, 20);
+  lv_obj_set_size(GUI_Button__home__buttonplay, 44, 44);
+
+  GUI_Image__home__image_35 = lv_image_create(GUI_Button__home__buttonplay);
+  lv_obj_add_flag(GUI_Image__home__image_35, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__home__image_35, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__home__image_35, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Image__home__image_35, -5, -4);
+  lv_obj_set_size(GUI_Image__home__image_35, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+
+  GUI_Textarea__home__textarea_4 = lv_textarea_create(GUI_Panel__home__panel_3);
+  lv_textarea_set_text(GUI_Textarea__home__textarea_4, "1");
+  lv_textarea_set_max_length(GUI_Textarea__home__textarea_4, 2);
+  lv_textarea_set_accepted_chars(GUI_Textarea__home__textarea_4, "1234567890");
+  lv_textarea_set_placeholder_text(GUI_Textarea__home__textarea_4, "");
+  lv_textarea_set_one_line(GUI_Textarea__home__textarea_4, true);
+  lv_obj_set_align(GUI_Textarea__home__textarea_4, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Textarea__home__textarea_4, 44, 44);
+
+  GUI_Button__home__buttondown = lv_button_create(GUI_Panel__home__panel_3);
+  lv_obj_set_align(GUI_Button__home__buttondown, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Button__home__buttondown, 20, 20);
+  lv_obj_set_size(GUI_Button__home__buttondown, 44, 44);
+
+  GUI_Image__home__image_36 = lv_image_create(GUI_Button__home__buttondown);
+  lv_obj_add_flag(GUI_Image__home__image_36, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__home__image_36, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__home__image_36, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Image__home__image_36, -8, -6);
+  lv_obj_set_size(GUI_Image__home__image_36, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+
   GUI_initScreenStyles__home();
   GUI_initScreenTexts__home();
 }
@@ -659,6 +716,12 @@ void GUI_initScreenStyles__home() {
   lv_obj_add_style(GUI_Panel__home__weather_panel,
                    &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__weather_panel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__weather_panel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
 
   lv_obj_add_style(GUI_Container__home__main_display_cont,
                    &GUI_Style__class_l2KF3gLqvrvgNA__,
@@ -1206,6 +1269,15 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_292pAkrGlFbI2Z__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
+  lv_obj_add_style(GUI_Panel__home__panel,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__panel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__panel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
   lv_obj_add_style(GUI_Panel__home__panel, &GUI_Style__class_5TGhYvIVJqeKbz__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
@@ -1221,5 +1293,169 @@ void GUI_initScreenStyles__home() {
 
   lv_obj_add_style(GUI_Image__home__SETTINGSBUTTON,
                    &GUI_Style__class_9GC5Lu563pp2v8__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Container__home__music_player,
+                   &GUI_Style__class_xexLdCVLH1nhdG__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Panel__home__panel_3,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__panel_3, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__panel_3, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Panel__home__panel_3, &GUI_Style__class_WbVp4cvhuaek12__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Button__home__buttonup,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Button__home__buttonup,
+                   &GUI_Style__class_qiMEmWPuCKrDEz__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonup, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_light_gray);
+
+  lv_image_set_src(GUI_Image__home__image_34,
+                   &upload_up1_09eda56b61fb420bb4679dd39a4c9782_png);
+
+  lv_obj_add_style(GUI_Image__home__image_34,
+                   &GUI_Style__class_HIiXHuL38TNuIt__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Button__home__buttonplay,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Button__home__buttonplay,
+                   &GUI_Style__class_HldN8l5VcFDMxv__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttonplay, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_light_gray);
+
+  lv_image_set_src(GUI_Image__home__image_35,
+                   &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
+
+  lv_obj_add_style(GUI_Image__home__image_35,
+                   &GUI_Style__class_IYhAyYrDrwaPbi__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Textarea__home__textarea_4,
+                   &GUI_Style__class_Na1ZxCw4bLah1N__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_white);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__home__textarea_4, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_white);
+
+  lv_obj_add_style(GUI_Button__home__buttondown,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Button__home__buttondown,
+                   &GUI_Style__class_XiuhNUm3yt1F7y__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__buttondown, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_light_gray);
+
+  lv_image_set_src(GUI_Image__home__image_36,
+                   &upload_down1_991ef596d2b7435c9663fdfd256c222a_png);
+
+  lv_obj_add_style(GUI_Image__home__image_36,
+                   &GUI_Style__class_TYxKoIRA89pYki__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 }
