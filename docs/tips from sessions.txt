@@ -1,0 +1,7 @@
+A few things that will make future handoffs even smoother:
+
+Keep the behaviors and rules.md updated as you discover new quirks about this board. We added the combined flash+monitor rule today — future sessions will benefit from anything else you learn.
+When Haiku creates a handoff doc, make sure it includes the exact error messages from the monitor log and which files were modified. That's what let us diagnose things quickly today.
+The HANDOFF_FOLDER is the right place — just keep naming them SESSION4, SESSION5, etc. so the progression is clear.
+
+This board has some real quirks (display reset requirement, I2S/DMA timing, GT911 hardware issue) that are now all documented. Future sessions won't have to rediscover any of it.

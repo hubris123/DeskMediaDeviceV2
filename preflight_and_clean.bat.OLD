@@ -1,0 +1,33 @@
+@echo off
+REM ============================================================================
+REM Preflight Check + Fullclean - Combined build preparation
+REM ============================================================================
+REM Runs preflight_check.bat, shows output in terminal AND saves to log file,
+REM then runs idf.py fullclean with the same dual output.
+REM ============================================================================
+
+echo.
+echo ========== STEP 1: PREFLIGHT CHECK ==========
+echo.
+
+REM Run preflight — show in terminal AND save to log file
+.\preflight_check.bat 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\preflight_log.txt" -Encoding UTF8
+
+REM Check if preflight passed (exit code 0 = all checks passed)
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo *** PREFLIGHT FAILED — fullclean aborted. Fix issues above first. ***
+    echo.
+    exit /b 1
+)
+
+echo.
+echo ========== STEP 2: FULLCLEAN ==========
+echo.
+
+REM Run fullclean — show in terminal AND save to log file
+idf.py fullclean 2>&1 | ForEach-Object { Write-Host $_; $_ } | Out-File -FilePath "claudetransferv2\clean_log.txt" -Encoding UTF8
+
+echo.
+echo ========== DONE — Ready to build ==========
+echo.

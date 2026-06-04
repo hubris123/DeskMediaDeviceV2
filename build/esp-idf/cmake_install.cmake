@@ -564,7 +564,12 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/main/cmake_install.cmake")
+  include("C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/squareline_ui/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__cjson/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
@@ -665,5 +670,10 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
   include("C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/bsp_extra/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/main/cmake_install.cmake")
 endif()
 

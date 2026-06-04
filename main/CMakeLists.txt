@@ -7,6 +7,7 @@ idf_component_register(
         weather/wmo_icon_map.c
         storage/nvs_storage.c
         ui/data_binding.c
+        ui/settings.c
         weather_icons.c
         weather_display.c
     INCLUDE_DIRS
@@ -25,4 +26,5 @@ idf_component_register(
         esp32_p4_wifi6_touch_lcd_4_3
         esp_codec_dev
         lvgl
+        chmorgan__esp-libhelix-mp3
 )

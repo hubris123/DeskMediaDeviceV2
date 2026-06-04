@@ -81,6 +81,7 @@ source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/components/bsp_extra/
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/components/esp32_p4_wifi6_touch_lcd_4_3/Kconfig"
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/chmorgan__esp-audio-player/Kconfig"
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/espressif__button/Kconfig"
+source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/espressif__cjson/Kconfig"
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/espressif__cmake_utilities/Kconfig"
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/espressif__esp_codec_dev/Kconfig"
 source "C:/Users/Administrator/Documents/DeskMediaDeviceV2/managed_components/espressif__esp_lcd_touch/Kconfig"

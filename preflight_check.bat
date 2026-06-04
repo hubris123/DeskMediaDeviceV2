@@ -83,7 +83,7 @@ if not exist "%PROJECT_ROOT%\sdkconfig" (
         echo   FIX: Run idf.py menuconfig, enable SPIRAM
         set /a FAIL_COUNT+=1
     ) else (
-        echo   [OK] CONFIG_SPIRAM=y ✓
+        echo   [OK] CONFIG_SPIRAM=y
         echo [PASS] Check %CHECK_COUNT%: CONFIG_SPIRAM=y >> "%CHECK_FILE%"
         set /a PASS_COUNT+=1
     )
@@ -95,12 +95,12 @@ echo [CHECK %CHECK_COUNT%] CONFIG_BSP_ERROR_CHECK in sdkconfig...
 
 "%PYTHON%" -c "import sys; data=open(r'%PROJECT_ROOT%\sdkconfig','rb').read().decode('utf-8','ignore'); sys.exit(0 if 'CONFIG_BSP_ERROR_CHECK=n' in data else 1)" >nul 2>&1
 if errorlevel 1 (
-    echo   [FAIL] CONFIG_BSP_ERROR_CHECK not set to n (GT911 will crash app)
+    echo   [FAIL] CONFIG_BSP_ERROR_CHECK not set to n - GT911 will crash app
     echo [FAIL] Check %CHECK_COUNT%: CONFIG_BSP_ERROR_CHECK not n >> "%CHECK_FILE%"
     echo   FIX: Run idf.py menuconfig, disable BSP Error Check
     set /a FAIL_COUNT+=1
 ) else (
-    echo   [OK] CONFIG_BSP_ERROR_CHECK=n ✓
+    echo   [OK] CONFIG_BSP_ERROR_CHECK=n
     echo [PASS] Check %CHECK_COUNT%: CONFIG_BSP_ERROR_CHECK=n >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -116,7 +116,7 @@ if errorlevel 1 (
     echo   FIX: Edit main/CMakeLists.txt, add main.c to SRCS
     set /a FAIL_COUNT+=1
 ) else (
-    echo   [OK] main.c in CMakeLists.txt ✓
+    echo   [OK] main.c in CMakeLists.txt
     echo [PASS] Check %CHECK_COUNT%: main.c in CMakeLists >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -126,10 +126,10 @@ set /a CHECK_COUNT+=1
 echo [CHECK %CHECK_COUNT%] parse_logs.bat exists...
 
 if not exist "%PROJECT_ROOT%\parse_logs.bat" (
-    echo   [WARN] parse_logs.bat not found (optional but recommended)
+    echo   [WARN] parse_logs.bat not found - optional but recommended
     echo [WARN] Check %CHECK_COUNT%: parse_logs.bat missing >> "%CHECK_FILE%"
 ) else (
-    echo   [OK] parse_logs.bat exists ✓
+    echo   [OK] parse_logs.bat exists
     echo [PASS] Check %CHECK_COUNT%: parse_logs.bat found >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -139,10 +139,10 @@ set /a CHECK_COUNT+=1
 echo [CHECK %CHECK_COUNT%] filter_monitor.bat exists...
 
 if not exist "%PROJECT_ROOT%\filter_monitor.bat" (
-    echo   [WARN] filter_monitor.bat not found (optional but recommended)
+    echo   [WARN] filter_monitor.bat not found - optional but recommended
     echo [WARN] Check %CHECK_COUNT%: filter_monitor.bat missing >> "%CHECK_FILE%"
 ) else (
-    echo   [OK] filter_monitor.bat exists ✓
+    echo   [OK] filter_monitor.bat exists
     echo [PASS] Check %CHECK_COUNT%: filter_monitor.bat found >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -152,10 +152,10 @@ set /a CHECK_COUNT+=1
 echo [CHECK %CHECK_COUNT%] summarize_diff.bat exists...
 
 if not exist "%PROJECT_ROOT%\summarize_diff.bat" (
-    echo   [WARN] summarize_diff.bat not found (optional but recommended)
+    echo   [WARN] summarize_diff.bat not found - optional but recommended
     echo [WARN] Check %CHECK_COUNT%: summarize_diff.bat missing >> "%CHECK_FILE%"
 ) else (
-    echo   [OK] summarize_diff.bat exists ✓
+    echo   [OK] summarize_diff.bat exists
     echo [PASS] Check %CHECK_COUNT%: summarize_diff.bat found >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -167,11 +167,11 @@ echo [CHECK %CHECK_COUNT%] Backup directory exists...
 if not exist "%BASE_DIR%\backup" (
     echo   [INFO] Creating backup directory...
     mkdir "%BASE_DIR%\backup"
-    echo   [OK] Backup directory created ✓
+    echo   [OK] Backup directory created
     echo [PASS] Check %CHECK_COUNT%: backup dir created >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 ) else (
-    echo   [OK] Backup directory exists ✓
+    echo   [OK] Backup directory exists
     echo [PASS] Check %CHECK_COUNT%: backup dir exists >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -181,10 +181,10 @@ set /a CHECK_COUNT+=1
 echo [CHECK %CHECK_COUNT%] CONSOLE_PATTERNS_REGISTRY.md exists...
 
 if not exist "%PROJECT_ROOT%\CONSOLE_PATTERNS_REGISTRY.md" (
-    echo   [WARN] CONSOLE_PATTERNS_REGISTRY.md not found (optional but useful)
+    echo   [WARN] CONSOLE_PATTERNS_REGISTRY.md not found - optional but useful
     echo [WARN] Check %CHECK_COUNT%: registry missing >> "%CHECK_FILE%"
 ) else (
-    echo   [OK] CONSOLE_PATTERNS_REGISTRY.md exists ✓
+    echo   [OK] CONSOLE_PATTERNS_REGISTRY.md exists
     echo [PASS] Check %CHECK_COUNT%: registry found >> "%CHECK_FILE%"
     set /a PASS_COUNT+=1
 )
@@ -194,26 +194,4 @@ REM SUMMARY
 REM ============================================================================
 
 echo.
-echo [SUMMARY]
-echo   Passed: %PASS_COUNT%/%CHECK_COUNT%
-echo   Failed: %FAIL_COUNT%/%CHECK_COUNT%
-echo.
-
-(
-    echo [SUMMARY] Passed: %PASS_COUNT%/%CHECK_COUNT% Failed: %FAIL_COUNT%/%CHECK_COUNT%
-    echo [TIMESTAMP] %TIMESTAMP%
-    echo.
-) >> "%CHECK_FILE%"
-
-if %FAIL_COUNT% GTR 0 (
-    echo.
-    echo *** BUILD NOT READY ***
-    echo Fix the failures above and try again.
-    echo.
-    exit /b 1
-) else (
-    echo ========== ALL CHECKS PASSED ✓ ==========
-    echo Ready to build!
-    echo.
-    exit /b 0
-)
+echo [SU

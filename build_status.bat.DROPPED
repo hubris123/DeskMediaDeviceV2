@@ -1,0 +1,152 @@
+@echo off
+REM ============================================================================
+REM Build Status File — Real-time status tracking
+REM ============================================================================
+REM Purpose:
+REM   Create a status file that tracks build/flash/monitor progress in real-time.
+REM   Check the file to see if build is in-progress or completed without asking.
+REM
+REM Usage:
+REM   Call at START of operation:
+REM     .\build_status.bat start build
+REM
+REM   Call at END of operation:
+REM     .\build_status.bat end build success    (or failed)
+REM
+REM Output:
+REM   Creates: <project>/claudetransferv2/BUILD_STATUS.txt
+REM
+REM Example workflow:
+REM   .\build_status.bat start build
+REM   idf.py build 2>&1 | Out-File build_log.txt
+REM   if errorlevel 1 (.\build_status.bat end build failed) else (.\build_status.bat end build success)
+REM
+REM ============================================================================
+
+setlocal enabledelayedexpansion
+
+REM ============================================================================
+REM CONFIGURATION
+REM ============================================================================
+set BASE_DIR=C:\Users\Administrator\Documents\DeskMediaDeviceV2\claudetransferv2
+
+REM Parameters
+set ACTION=%1
+set OPERATION=%2
+set RESULT=%3
+
+REM Generate timestamp
+for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c%%a%%b)
+for /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a%%b)
+set TIMESTAMP=%mydate%_%mytime%
+
+REM Output file
+set STATUS_FILE=%BASE_DIR%\BUILD_STATUS.txt
+
+REM Create output directory if needed
+if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
+
+REM Validate parameters
+if "%ACTION%"=="" (
+    echo.
+    echo ERROR: Missing action parameter
+    echo Usage: build_status.bat ^<action^> ^<operation^> [result]
+    echo Actions: start, end
+    echo Operations: clean, build, flash, monitor, fullclean
+    echo Results: success, failed (only for 'end')
+    echo.
+    echo Examples:
+    echo   build_status.bat start build
+    echo   build_status.bat end build success
+    echo   build_status.bat end build failed
+    echo.
+    exit /b 1
+)
+
+REM ============================================================================
+REM ACTION: START
+REM ============================================================================
+if /i "%ACTION%"=="start" (
+    if "%OPERATION%"=="" (
+        echo ERROR: Missing operation name
+        exit /b 1
+    )
+
+    (
+        echo [%TIMESTAMP%] ========================================
+        echo [STATUS] %OPERATION% started
+        echo [OPERATION] %OPERATION%
+        echo [START_TIME] %TIMESTAMP%
+        echo [STATE] in_progress
+    ) > "%STATUS_FILE%"
+
+    echo.
+    echo [STARTED] %OPERATION%
+    echo [TIME] %TIMESTAMP%
+    echo.
+    exit /b 0
+)
+
+REM ============================================================================
+REM ACTION: END
+REM ============================================================================
+if /i "%ACTION%"=="end" (
+    if "%OPERATION%"=="" (
+        echo ERROR: Missing operation name
+        exit /b 1
+    )
+
+    if "%RESULT%"=="" (
+        echo ERROR: Missing result (success or failed)
+        exit /b 1
+    )
+
+    REM Determine state based on result
+    if /i "%RESULT%"=="success" (
+        set STATE=completed_success
+        set ICON=[OK]
+    ) else if /i "%RESULT%"=="failed" (
+        set STATE=completed_failed
+        set ICON=[FAIL]
+    ) else (
+        echo ERROR: Result must be 'success' or 'failed'
+        exit /b 1
+    )
+
+    (
+        echo [%TIMESTAMP%] ========================================
+        echo [STATUS] %OPERATION% completed
+        echo [OPERATION] %OPERATION%
+        echo [START_TIME] (see previous status)
+        echo [END_TIME] %TIMESTAMP%
+        echo [STATE] %STATE%
+        echo [RESULT] %RESULT%
+    ) >> "%STATUS_FILE%"
+
+    echo.
+    echo %ICON% [COMPLETED] %OPERATION% - %RESULT%
+    echo [TIME] %TIMESTAMP%
+    echo.
+    exit /b 0
+)
+
+REM ============================================================================
+REM ACTION: CHECK (view current status)
+REM ============================================================================
+if /i "%ACTION%"=="check" (
+    if exist "%STATUS_FILE%" (
+        echo.
+        type "%STATUS_FILE%" | findstr "STATE\|RESULT\|OPERATION\|TIME"
+        echo.
+    ) else (
+        echo No status file found. Start a build first.
+    )
+    exit /b 0
+)
+
+REM ============================================================================
+REM Invalid action
+REM ============================================================================
+echo ERROR: Invalid action '%ACTION%'
+echo Valid actions: start, end, check
+exit /b 1

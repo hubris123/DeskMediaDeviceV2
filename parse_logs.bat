@@ -8,9 +8,9 @@ REM          parse_logs.bat git_commit_log.txt git
 REM
 REM Output Files:
 REM   - claudetransferv2\ERRORS(Stop/Break).txt (appended, non-git)
-REM   - claudetransferv2\WARNINGS(Safe to Skip).txt (appended, non-git)
+REM   - claudetransferv2\WARNINGS_safe.txt (appended, non-git)
 REM   - claudetransferv2\ERRORS(Stop/Break)_git.txt (appended, git only)
-REM   - claudetransferv2\WARNINGS(Safe to Skip)_git.txt (appended, git only)
+REM   - claudetransferv2\WARNINGS_safe_git.txt (appended, git only)
 REM ============================================================================
 
 setlocal enabledelayedexpansion
@@ -26,11 +26,11 @@ if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
 
 REM Determine output file names based on command type
 if /i "%COMMAND_TYPE%"=="git" (
-    set ERROR_FILE=%BASE_DIR%\ERRORS(Stop^!Break)_git.txt
-    set WARNING_FILE=%BASE_DIR%\WARNINGS(Safe to Skip)_git.txt
+    set ERROR_FILE=%BASE_DIR%\ERRORS_critical_git.txt
+    set WARNING_FILE=%BASE_DIR%\WARNINGS_safe_git.txt
 ) else (
-    set ERROR_FILE=%BASE_DIR%\ERRORS(Stop^!Break).txt
-    set WARNING_FILE=%BASE_DIR%\WARNINGS(Safe to Skip).txt
+    set ERROR_FILE=%BASE_DIR%\ERRORS_critical.txt
+    set WARNING_FILE=%BASE_DIR%\WARNINGS_safe.txt
 )
 
 REM Check if log file exists
@@ -112,11 +112,4 @@ findstr /N /I "GT911" "%LOG_FILE%" >> "%WARNING_FILE%"
 findstr /N /I "touch_gt911" "%LOG_FILE%" >> "%WARNING_FILE%"
 findstr /N /I "i2c transaction failed" "%LOG_FILE%" >> "%WARNING_FILE%"
 findstr /N /I "deprecated" "%LOG_FILE%" >> "%WARNING_FILE%"
-findstr /N /I "format string" "%LOG_FILE%" >> "%WARNING_FILE%"
-findstr /N /I "comparison always" "%LOG_FILE%" >> "%WARNING_FILE%"
-findstr /N /I "unused result" "%LOG_FILE%" >> "%WARNING_FILE%"
-
-echo. >> "%ERROR_FILE%"
-echo. >> "%WARNING_FILE%"
-
-exit /b 0
+findstr /N /I "format s

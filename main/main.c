@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include "mp3dec.h"
 #include <dirent.h>
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
@@ -18,6 +20,8 @@
 
 // Weather system integration
 #include "GUI.h"
+#include "audio.h"
+#include "settings.h"
 #include "weather/weather_task.h"
 #include "weather/weather_data.h"
 #include "weather/wmo_icon_map.h"
@@ -159,6 +163,156 @@ static void scan_sd_card(void)
 
 static void stop_callback(lv_event_t *e)      { is_playing = false; ESP_LOGI(TAG, "Audio stopped"); }
 
+
+// ── Public audio API ─────────────────────────────────────────────────────────
+
+static void tick_task(void *arg)
+{
+    (void)arg;
+    if (spk_codec_dev == NULL) { vTaskDelete(NULL); return; }
+
+    // Generate a short 880Hz sine burst (20ms @ 16kHz = 320 samples)
+    const int SAMPLES = 320;
+    int16_t buf[SAMPLES * 2]; // stereo
+    for (int i = 0; i < SAMPLES; i++) {
+        float t = (float)i / 16000.0f;
+        float env = (i < 80) ? (float)i / 80.0f : (float)(SAMPLES - i) / (float)(SAMPLES - 80);
+        int16_t s = (int16_t)(env * 8000.0f * sinf(2.0f * 3.14159f * 880.0f * t));
+        buf[i * 2]     = s;
+        buf[i * 2 + 1] = s;
+    }
+    esp_codec_dev_write(spk_codec_dev, buf, sizeof(buf));
+    vTaskDelete(NULL);
+}
+
+void audio_play_tick(void)
+{
+    xTaskCreate(tick_task, "tick", 4096, NULL, 6, NULL);
+}
+
+void audio_set_volume(int percent)
+{
+    if (spk_codec_dev == NULL) return;
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+    esp_codec_dev_set_out_vol(spk_codec_dev, percent);
+}
+
+void audio_play_wav_preview(void)
+{
+    if (wav_file_path[0] == '\0') return;
+    if (is_playing) return;
+    xTaskCreate(audio_task, "audio_preview", 4096,
+                (void *)(uintptr_t)AUDIO_TYPE_WAV, 5, &audio_task_handle);
+}
+
+static void success_task(void *arg)
+{
+    (void)arg;
+    if (spk_codec_dev == NULL) { vTaskDelete(NULL); return; }
+    FILE *f = fopen("/sdcard/SUCCESS.WAV", "rb");
+    if (!f) { ESP_LOGW("Audio", "SUCCESS.WAV not found"); vTaskDelete(NULL); return; }
+    fseek(f, 44, SEEK_SET);  // skip WAV header
+    uint8_t buf[512];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+        esp_codec_dev_write(spk_codec_dev, buf, (int)n);
+    fclose(f);
+    vTaskDelete(NULL);
+}
+
+void audio_play_success(void)
+{
+    if (spk_codec_dev == NULL) return;
+    xTaskCreate(success_task, "success_snd", 4096, NULL, 5, NULL);
+}
+
+
+// ── MP3 playback ─────────────────────────────────────────────────────────────
+
+#define MP3_READ_BUF_SIZE   2048
+#define MP3_PCM_BUF_FRAMES  1152  // max frames per MP3 frame
+
+typedef struct {
+    char path[256];
+} mp3_play_args_t;
+
+static void mp3_task(void *arg)
+{
+    mp3_play_args_t *args = (mp3_play_args_t *)arg;
+    if (spk_codec_dev == NULL) { free(args); vTaskDelete(NULL); return; }
+
+    FILE *f = fopen(args->path, "rb");
+    free(args);
+    if (!f) { ESP_LOGW("MP3", "File not found"); vTaskDelete(NULL); return; }
+
+    HMP3Decoder decoder = MP3InitDecoder();
+    if (!decoder) { fclose(f); vTaskDelete(NULL); return; }
+
+    uint8_t *read_buf = malloc(MP3_READ_BUF_SIZE);
+    short   *pcm_buf  = malloc(MP3_PCM_BUF_FRAMES * 2 * sizeof(short)); // stereo
+    if (!read_buf || !pcm_buf) {
+        free(read_buf); free(pcm_buf);
+        MP3FreeDecoder(decoder); fclose(f); vTaskDelete(NULL); return;
+    }
+
+    int bytes_in_buf = 0;
+    uint8_t *read_ptr = read_buf;
+
+    while (1) {
+        // Refill buffer
+        int space = MP3_READ_BUF_SIZE - bytes_in_buf;
+        if (space > 0 && read_ptr != read_buf) {
+            memmove(read_buf, read_ptr, bytes_in_buf);
+            read_ptr = read_buf;
+        }
+        if (space > 0) {
+            size_t n = fread(read_buf + bytes_in_buf, 1, space, f);
+            bytes_in_buf += (int)n;
+            if (n == 0 && bytes_in_buf == 0) break; // EOF
+        }
+
+        // Find sync word
+        int offset = MP3FindSyncWord(read_ptr, bytes_in_buf);
+        if (offset < 0) { bytes_in_buf = 0; read_ptr = read_buf; continue; }
+        read_ptr    += offset;
+        bytes_in_buf -= offset;
+
+        // Decode one frame
+        unsigned char *rp = read_ptr;
+        int bl = bytes_in_buf;
+        int err = MP3Decode(decoder, &rp, &bl, pcm_buf, 0);
+        if (err != 0) {
+            read_ptr++; bytes_in_buf--;
+            continue;
+        }
+        int consumed = bytes_in_buf - bl;
+        read_ptr    += consumed;
+        bytes_in_buf = bl;
+
+        MP3FrameInfo info;
+        MP3GetLastFrameInfo(decoder, &info);
+        int samples = info.outputSamps; // total shorts (channels * frames)
+        esp_codec_dev_write(spk_codec_dev, pcm_buf, samples * sizeof(short));
+    }
+
+    free(read_buf);
+    free(pcm_buf);
+    MP3FreeDecoder(decoder);
+    fclose(f);
+    vTaskDelete(NULL);
+}
+
+void audio_play_mp3(const char *path)
+{
+    if (spk_codec_dev == NULL) return;
+    mp3_play_args_t *args = malloc(sizeof(mp3_play_args_t));
+    if (!args) return;
+    strncpy(args->path, path, sizeof(args->path) - 1);
+    args->path[sizeof(args->path)-1] = '\0';
+    xTaskCreate(mp3_task, "mp3_play", 8192, args, 5, NULL);
+}
+
 static void play_pcm_callback(lv_event_t *e)
 {
     if (pcm_file_path[0] == '\0') { ESP_LOGW(TAG, "PCM file not found"); return; }
@@ -185,6 +339,9 @@ static void create_ui(void)
 
     // Set background image on home screen
     lv_obj_set_style_bg_image_src(GUI_Screen__home, &upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
+
+    // Wire up settings button and settings screen
+    settings_ui_init();
 }
 
 void app_main(void)
@@ -209,7 +366,7 @@ void app_main(void)
         .lv_adapter_cfg = ESP_LV_ADAPTER_DEFAULT_CONFIG(),
         .rotation = ESP_LV_ADAPTER_ROTATE_90,
         .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_DOUBLE_FULL,
-        .touch_flags = { .swap_xy = 1, .mirror_x = 0, .mirror_y = 0 }
+        .touch_flags = { .swap_xy = 1, .mirror_x = 1, .mirror_y = 0 }
     };
 
     bsp_display_start_with_config(&cfg);
