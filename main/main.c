@@ -16,6 +16,14 @@
 #include "bsp_board_extra.h"
 #include "esp_codec_dev.h"
 
+// Weather system integration
+#include "GUI.h"
+#include "weather/weather_task.h"
+#include "weather/weather_data.h"
+#include "weather/wmo_icon_map.h"
+#include "storage/nvs_storage.h"
+#include "ui/data_binding.h"
+
 static const char *TAG = "DeskMediaDevice";
 
 #define AUDIO_SAMPLE_RATE       16000
@@ -169,55 +177,14 @@ static void play_wav_callback(lv_event_t *e)
 
 static void create_ui(void)
 {
-    lv_obj_t *scr = lv_scr_act();
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0x1a1a1a), 0);
+    // Initialize SquareLine UI
+    // Note: GUI_init() must be called AFTER bsp_display_start_with_config()
+    // and INSIDE bsp_display_lock() to avoid timing issues
+    ESP_LOGI(TAG, "Initializing SquareLine UI");
+    GUI_init();
 
-    lv_obj_t *title = lv_label_create(scr);
-    lv_label_set_text(title, "Desk Media Device");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xffffff), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
-
-    lv_obj_t *status = lv_label_create(scr);
-    lv_label_set_text(status, "Ready");
-    lv_obj_set_style_text_color(status, lv_color_hex(0x00ff00), 0);
-    lv_obj_align(status, LV_ALIGN_TOP_MID, 0, 60);
-
-    lv_obj_t *btn_pcm = lv_btn_create(scr);
-    lv_obj_set_size(btn_pcm, 200, 60);
-    lv_obj_align(btn_pcm, LV_ALIGN_CENTER, -120, -80);
-    lv_obj_set_style_bg_color(btn_pcm, lv_color_hex(0x0066cc), 0);
-    lv_obj_add_event_cb(btn_pcm, play_pcm_callback, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *label_pcm = lv_label_create(btn_pcm);
-    lv_label_set_text(label_pcm, "Play PCM");
-    lv_obj_center(label_pcm);
-
-    lv_obj_t *btn_wav = lv_btn_create(scr);
-    lv_obj_set_size(btn_wav, 200, 60);
-    lv_obj_align(btn_wav, LV_ALIGN_CENTER, 120, -80);
-    lv_obj_set_style_bg_color(btn_wav, lv_color_hex(0x00cc66), 0);
-    lv_obj_add_event_cb(btn_wav, play_wav_callback, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *label_wav = lv_label_create(btn_wav);
-    lv_label_set_text(label_wav, "Play WAV");
-    lv_obj_center(label_wav);
-
-    lv_obj_t *btn_stop = lv_btn_create(scr);
-    lv_obj_set_size(btn_stop, 200, 60);
-    lv_obj_align(btn_stop, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(btn_stop, lv_color_hex(0xcc0000), 0);
-    lv_obj_add_event_cb(btn_stop, stop_callback, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *label_stop = lv_label_create(btn_stop);
-    lv_label_set_text(label_stop, "Stop");
-    lv_obj_center(label_stop);
-
-    lv_obj_t *info = lv_label_create(scr);
-    char info_text[256];
-    snprintf(info_text, sizeof(info_text), "PCM: %s\nWAV: %s",
-             pcm_file_path[0] != '\0' ? "Found" : "Not found",
-             wav_file_path[0] != '\0' ? "Found" : "Not found");
-    lv_label_set_text(info, info_text);
-    lv_obj_set_style_text_color(info, lv_color_hex(0xcccccc), 0);
-    lv_obj_align(info, LV_ALIGN_BOTTOM_MID, 0, -20);
+    // Set background image on home screen
+    lv_obj_set_style_bg_image_src(GUI_Screen__home, &upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
 }
 
 void app_main(void)
@@ -240,9 +207,9 @@ void app_main(void)
 
     bsp_display_cfg_t cfg = {
         .lv_adapter_cfg = ESP_LV_ADAPTER_DEFAULT_CONFIG(),
-        .rotation = ESP_LV_ADAPTER_ROTATE_0,
-        .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_NONE,
-        .touch_flags = { .swap_xy = 0, .mirror_x = 0, .mirror_y = 0 }
+        .rotation = ESP_LV_ADAPTER_ROTATE_90,
+        .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_DOUBLE_FULL,
+        .touch_flags = { .swap_xy = 1, .mirror_x = 0, .mirror_y = 0 }
     };
 
     bsp_display_start_with_config(&cfg);
@@ -260,6 +227,14 @@ void app_main(void)
 
     ret = codec_init();
     if (ret != ESP_OK) { ESP_LOGE(TAG, "Codec init failed"); }
+
+    // Initialize weather system
+    ESP_LOGI(TAG, "Initializing weather system");
+    ret = nvs_storage_init();
+    if (ret != ESP_OK) { ESP_LOGW(TAG, "NVS storage init failed: %s", esp_err_to_name(ret)); }
+
+    ret = weather_task_start();
+    if (ret != ESP_OK) { ESP_LOGW(TAG, "Weather task start failed: %s", esp_err_to_name(ret)); }
 
     ESP_LOGI(TAG, "Initialization complete");
     while (1) { vTaskDelay(pdMS_TO_TICKS(1000)); }

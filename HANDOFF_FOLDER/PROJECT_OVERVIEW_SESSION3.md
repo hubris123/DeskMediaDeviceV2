@@ -6,6 +6,17 @@
 
 ---
 
+## Read These First
+
+Before starting work, read these two documents:
+- `HANDOFF_FOLDER/BOARD_TIPS_AND_QUIRKS.md` — hard-won lessons about this board's quirks
+- `HANDOFF_FOLDER/EFFICIENCY_SYSTEM.md` — how to use the 6 efficiency tools to save quota
+
+The efficiency tools reduce token usage significantly. Use `preflight_check.bat` before
+every build and `filter_monitor.bat` after every monitor run.
+
+---
+
 ## Current Status: FULLY WORKING ✅
 
 - ✅ Device boots reliably on every boot (power-on AND soft reset)

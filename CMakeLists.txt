@@ -6,6 +6,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(EXTRA_COMPONENT_DIRS
     ./components/bsp_extra
+    ./components/squareline_ui
     )
 
 add_compile_options(-Wno-format)

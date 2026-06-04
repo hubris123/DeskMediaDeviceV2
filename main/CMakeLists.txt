@@ -1,4 +1,28 @@
 idf_component_register(
-    SRCS main.c
-    INCLUDE_DIRS .
+    SRCS
+        main.c
+        weather/weather_data.c
+        weather/weather_api.c
+        weather/weather_task.c
+        weather/wmo_icon_map.c
+        storage/nvs_storage.c
+        ui/data_binding.c
+        weather_icons.c
+        weather_display.c
+    INCLUDE_DIRS
+        .
+        weather
+        storage
+        ui
+    REQUIRES
+        squareline_ui
+        esp_http_client
+        cjson
+        nvs_flash
+        freertos
+        driver
+        bsp_extra
+        esp32_p4_wifi6_touch_lcd_4_3
+        esp_codec_dev
+        lvgl
 )

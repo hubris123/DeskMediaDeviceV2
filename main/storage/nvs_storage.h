@@ -1,0 +1,67 @@
+#ifndef NVS_STORAGE_H
+#define NVS_STORAGE_H
+
+#include "weather_data.h"
+#include "esp_err.h"
+#include <stdbool.h>
+
+/**
+ * NVS Storage for Weather System
+ *
+ * Namespace: "weather"
+ * Keys:
+ *   - "city" (string, max 50)
+ *   - "state" (string, max 3)
+ *   - "lat" (float32)
+ *   - "lon" (float32)
+ *   - "timezone" (string, max 50)
+ */
+
+/**
+ * Initialize NVS for weather storage
+ * Must be called after nvs_flash_init()
+ * @return: ESP_OK if successful
+ */
+esp_err_t nvs_storage_init(void);
+
+/**
+ * Store location to NVS
+ * @param loc: Pointer to location_t with city, state, lat, lon
+ * @return: ESP_OK if successful
+ */
+esp_err_t nvs_store_location(const location_t *loc);
+
+/**
+ * Load location from NVS
+ * @param loc: Pointer to location_t to fill
+ * @return: ESP_OK if location found and loaded
+ */
+esp_err_t nvs_load_location(location_t *loc);
+
+/**
+ * Check if valid location exists in NVS
+ * @return: true if location found, false otherwise
+ */
+bool nvs_has_valid_location(void);
+
+/**
+ * Store weather data to NVS for offline fallback
+ * @param weather: Pointer to weather_data_t
+ * @return: ESP_OK if successful
+ */
+esp_err_t nvs_store_weather(const weather_data_t *weather);
+
+/**
+ * Load weather data from NVS (offline fallback)
+ * @param weather: Pointer to weather_data_t to fill
+ * @return: ESP_OK if weather data found and loaded
+ */
+esp_err_t nvs_load_weather(weather_data_t *weather);
+
+/**
+ * Clear all weather-related NVS data
+ * @return: ESP_OK if successful
+ */
+esp_err_t nvs_clear_weather(void);
+
+#endif // NVS_STORAGE_H
