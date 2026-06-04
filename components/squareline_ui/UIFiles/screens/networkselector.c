@@ -12,15 +12,14 @@ void GUI_initScreen__networkselector() {
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__networkselector__container_10,
                    LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Container__networkselector__container_10, 215, -40);
-  lv_obj_set_size(GUI_Container__networkselector__container_10, 412, 463);
+  lv_obj_set_size(GUI_Container__networkselector__container_10, 800, 480);
 
   GUI_Panel__networkselector__panel_2 =
       lv_obj_create(GUI_Container__networkselector__container_10);
   lv_obj_remove_flag(GUI_Panel__networkselector__panel_2,
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Panel__networkselector__panel_2, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Panel__networkselector__panel_2, 360, 390);
+  lv_obj_set_size(GUI_Panel__networkselector__panel_2, 518, 470);
 
   GUI_Label__networkselector__label_8 =
       lv_label_create(GUI_Panel__networkselector__panel_2);
@@ -37,7 +36,7 @@ void GUI_initScreen__networkselector() {
   lv_textarea_set_text(GUI_Textarea__networkselector__textarea, "");
   lv_textarea_set_placeholder_text(GUI_Textarea__networkselector__textarea, "");
   lv_obj_set_align(GUI_Textarea__networkselector__textarea, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Textarea__networkselector__textarea, 343, 298);
+  lv_obj_set_size(GUI_Textarea__networkselector__textarea, 395, 330);
 
   GUI_Container__networkselector__container_11 =
       lv_obj_create(GUI_Panel__networkselector__panel_2);

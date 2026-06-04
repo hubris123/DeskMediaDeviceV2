@@ -176,6 +176,8 @@ void settings_ui_init(void)
                         zipcode_field_cb, LV_EVENT_CLICKED, NULL);
     // Default zip code on first boot
     lv_textarea_set_placeholder_text(GUI_Textarea__settingswindow__textarea_1, "88002");
+    // Widen field to fit up to 10 digits
+    lv_obj_set_width(GUI_Textarea__settingswindow__textarea_1, 200);
     // Style: larger font, black text, centered vertically
     lv_obj_set_style_text_font(GUI_Textarea__settingswindow__textarea_1,
                                &fixed23, LV_PART_MAIN);

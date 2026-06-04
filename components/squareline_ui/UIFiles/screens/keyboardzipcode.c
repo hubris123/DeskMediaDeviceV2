@@ -105,6 +105,33 @@ void GUI_initScreenStyles__keyboardzipcode() {
                    LV_PART_MAIN | LV_STATE_DEFAULT);
   ui_object_set_themeable_style_property(
       GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_COLOR,
+      _ui_theme_bg_color_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_OPA, _ui_theme_bg_opa_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_GRAD_COLOR,
+      _ui_theme_grad_color_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_GRAD_OPA,
+      _ui_theme_grad_opa_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_GRAD_DIR,
+      _ui_theme_grad_dir_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_MAIN_STOP,
+      _ui_theme_main_stop_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
+      LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_BG_GRAD_STOP,
+      _ui_theme_grad_stop_black);
+  ui_object_set_themeable_style_property(
+      GUI_Textarea__keyboardzipcode__textarea_zipcode,
       LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_OUTLINE_COLOR,
       _ui_theme_bg_color_light_gray);
   ui_object_set_themeable_style_property(

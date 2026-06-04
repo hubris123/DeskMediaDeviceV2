@@ -7,7 +7,7 @@ void GUI_initScreenStyles__home() {
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
   lv_obj_add_style(GUI_Panel__home__weather_panel,
-                   &GUI_Style__class_HxADxF6juDKWfB__,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
   lv_obj_add_style(GUI_Container__home__main_display_cont,
