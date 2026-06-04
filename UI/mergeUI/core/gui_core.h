@@ -1,0 +1,196 @@
+#ifndef _GUI_CORE_H
+#define _GUI_CORE_H
+
+#if defined __has_include
+#if __has_include("lvgl.h")
+#include "lvgl.h"
+#elif __has_include("lvgl/lvgl.h")
+#include "lvgl/lvgl.h"
+#else
+#include "lvgl.h"
+#endif
+#else
+#include "lvgl.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Screen-specific function declarations
+void GUI_initScreen__home();
+void GUI_initScreenTexts__home();
+void GUI_initScreenStyles__home();
+
+void GUI_initScreen__keyboardpassword();
+void GUI_initScreenTexts__keyboardpassword();
+void GUI_initScreenStyles__keyboardpassword();
+
+void GUI_initScreen__keyboardzipcode();
+void GUI_initScreenTexts__keyboardzipcode();
+void GUI_initScreenStyles__keyboardzipcode();
+
+void GUI_initScreen__settingswindow();
+void GUI_initScreenTexts__settingswindow();
+void GUI_initScreenStyles__settingswindow();
+
+void GUI_initScreen__networkselector();
+void GUI_initScreenTexts__networkselector();
+void GUI_initScreenStyles__networkselector();
+
+void GUI_initScreen__screen();
+void GUI_initScreenTexts__screen();
+void GUI_initScreenStyles__screen();
+
+extern lv_style_t GUI_Style__class_8rQJj2WR7KS5BW__;
+extern lv_style_t GUI_Style__class_rh9OIkK6YioF9J__test1style;
+extern lv_style_t GUI_Style__class_qx6LXcI5pACvOu__;
+extern lv_style_t GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop;
+extern lv_style_t GUI_Style__class_l2KF3gLqvrvgNA__;
+extern lv_style_t GUI_Style__class_QPHwtUHlUxUOEn__;
+extern lv_style_t GUI_Style__class_lp2SW4VTZ90VZp__;
+extern lv_style_t GUI_Style__class_S38iEdXYHp1zFH__;
+extern lv_style_t GUI_Style__class_kL3MCphSm1zdhB__;
+extern lv_style_t GUI_Style__class_ouIAe8vEK7tLAC__;
+extern lv_style_t GUI_Style__class_OWp7o3fr8u7nZG__;
+extern lv_style_t GUI_Style__class_dlCXVJg3k6UwKj__;
+extern lv_style_t GUI_Style__class_UthKrP17uaRpGr__;
+extern lv_style_t GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize;
+extern lv_style_t GUI_Style__class_fMZLS649q9lJQi__;
+extern lv_style_t GUI_Style__class_Jw5auITeCyGC1B__;
+extern lv_style_t GUI_Style__class_3kssyjEdbcCLSh__;
+extern lv_style_t GUI_Style__class_z6I6jhPHmAziTD__;
+extern lv_style_t GUI_Style__class_u3dHPTQfScNGqf__;
+extern lv_style_t GUI_Style__class_Kv9aIdJXPzd4E0__;
+extern lv_style_t GUI_Style__class_330bxbZF7kZsG8__;
+extern lv_style_t GUI_Style__class_aB5O6v8av05RG3__;
+extern lv_style_t GUI_Style__class_Nw5ZzS54u0kNST__;
+extern lv_style_t GUI_Style__class_JfsW2zlbgqJxeX__;
+extern lv_style_t GUI_Style__class_E4wegkc5VJFKsz__;
+extern lv_style_t GUI_Style__class_NHMYIepongiLxJ__;
+extern lv_style_t GUI_Style__class_bnXaTUcRtszjic__;
+extern lv_style_t GUI_Style__class_UwhUwo9ljeO8lt__;
+extern lv_style_t GUI_Style__class_SqnJ2yTfN70m5F__;
+extern lv_style_t GUI_Style__class_9V6WvrW17HbJD1__;
+extern lv_style_t GUI_Style__class_yL6megXhm9GYb7__;
+extern lv_style_t GUI_Style__class_N6QjKxi1tUPVcv__;
+extern lv_style_t GUI_Style__class_WhQHp8mtjRM1Z6__;
+extern lv_style_t GUI_Style__class_6Zqyl1PAzGby72__;
+extern lv_style_t GUI_Style__class_mGTxkagT6y6pNF__;
+extern lv_style_t GUI_Style__class_7OQhhQvZCJEXNK__orangetitle;
+extern lv_style_t GUI_Style__class_9MpPQcvJSEks3y__;
+extern lv_style_t GUI_Style__class_OvMbXZAsPbZjnb__;
+extern lv_style_t GUI_Style__class_E4t2gqcHR8MbAP__;
+extern lv_style_t GUI_Style__class_1w85YzMTP9d5q4__;
+extern lv_style_t GUI_Style__class_wKOu7L7fJpWUc8__;
+extern lv_style_t GUI_Style__class_HZ1hQzhR4glwPE__;
+extern lv_style_t GUI_Style__class_sI3TdUhM0WS1Zb__;
+extern lv_style_t GUI_Style__class_tpmJOiEkbfWCQ5__;
+extern lv_style_t GUI_Style__class_5aC5gkRCTJRBpX__;
+extern lv_style_t GUI_Style__class_292pAkrGlFbI2Z__;
+extern lv_style_t GUI_Style__class_5TGhYvIVJqeKbz__;
+extern lv_style_t GUI_Style__class_q2R0whE4QSYoQW__;
+extern lv_style_t GUI_Style__class_9GC5Lu563pp2v8__;
+extern lv_style_t GUI_Style__class_xexLdCVLH1nhdG__;
+extern lv_style_t GUI_Style__class_WbVp4cvhuaek12__;
+extern lv_style_t GUI_Style__class_qiMEmWPuCKrDEz__;
+extern lv_style_t GUI_Style__class_HIiXHuL38TNuIt__;
+extern lv_style_t GUI_Style__class_HldN8l5VcFDMxv__;
+extern lv_style_t GUI_Style__class_IYhAyYrDrwaPbi__;
+extern lv_style_t GUI_Style__class_Na1ZxCw4bLah1N__;
+extern lv_style_t GUI_Style__class_XiuhNUm3yt1F7y__;
+extern lv_style_t GUI_Style__class_TYxKoIRA89pYki__;
+extern lv_style_t GUI_Style__class_AvvcYB4wlpzNqr__;
+extern lv_style_t GUI_Style__class_iwIHCP82XdjJdR__;
+extern lv_style_t GUI_Style__class_3D1LJzVb3VpFXw__;
+extern lv_style_t GUI_Style__class_T55yx89GcErjMB__;
+extern lv_style_t GUI_Style__class_N2ZGjd4KyT2jge__;
+extern lv_style_t GUI_Style__class_SeaE8oLUEcFIjo__;
+extern lv_style_t GUI_Style__class_S00QKhlb0gBiuM__;
+extern lv_style_t GUI_Style__class_jAGg6Vr5bnL97F__;
+extern lv_style_t GUI_Style__class_Qk2ZaylebJZndu__;
+extern lv_style_t GUI_Style__class_c1pd7LDWptdXA5__;
+extern lv_style_t GUI_Style__class_dVaeR4MlNk6JVP__;
+extern lv_style_t GUI_Style__class_vksvC08E9lfusD__;
+extern lv_style_t GUI_Style__class_fqJ9BAuupzIIWh__;
+extern lv_style_t GUI_Style__class_3VuxfhxbEdo6EO__;
+extern lv_style_t GUI_Style__class_EQHHuxrbsUsFwQ__;
+extern lv_style_t GUI_Style__class_YQdvrXqq6m6UwT__;
+extern lv_style_t GUI_Style__class_5dd3lX6oAKILzH__;
+extern lv_style_t GUI_Style__class_WOdzLKOUWTKn2D__;
+extern lv_style_t GUI_Style__class_PWig0wvDygIn92__;
+extern lv_style_t GUI_Style__class_zIG6cz2FsG6fjL__;
+extern lv_style_t GUI_Style__class_GGJhSwdaT2bCHt__;
+extern lv_style_t GUI_Style__class_bvAupbhGzO9lgK__;
+extern lv_style_t GUI_Style__class_BMQiIJTpQecj2H__;
+extern lv_style_t GUI_Style__class_qbslh11Av1hMuq__;
+extern lv_style_t GUI_Style__class_aZS4mzVqpqteVv__;
+extern lv_style_t GUI_Style__class_WEVkYUZKphwXIY__;
+extern lv_style_t GUI_Style__class_4hGM1DOyWzKXGG__;
+extern lv_style_t GUI_Style__class_JAL8G2SBlbgsMK__;
+extern lv_style_t GUI_Style__class_kkoJh1hF2B6tCJ__;
+extern lv_style_t GUI_Style__class_QdPpiSKXWeZY8l__;
+extern lv_style_t GUI_Style__class_jKApx7l6HgsZwU__;
+extern lv_style_t GUI_Style__class_bEwEjPfvF2IHLl__;
+extern lv_style_t GUI_Style__class_IehN4pBvRaLoqF__;
+extern lv_style_t GUI_Style__class_HRt1tUvdsVkBGo__;
+extern lv_style_t GUI_Style__class_lot1J19xVfrTSM__;
+extern lv_style_t GUI_Style__class_ponc57mppwwLBh__;
+extern lv_style_t GUI_Style__class_q7eZlp9MO0EzKy__;
+extern lv_style_t GUI_Style__class_AIIBPtShI6bHVL__;
+extern lv_style_t GUI_Style__class_UWMNsTuzutTPfW__;
+extern lv_style_t GUI_Style__class_F0bYoBMAkxnmi5__;
+extern lv_style_t GUI_Style__class_h8YvkrJbLCkkxu__;
+extern lv_style_t GUI_Style__class_UtTCsRwFAEV8hf__;
+extern lv_style_t GUI_Style__class_V44bb0Z3JHdHzw__;
+extern lv_style_t GUI_Style__class_D644wxpfWBY58v__;
+extern lv_style_t GUI_Style__class_NA9r6BEuUHzdhT__;
+extern lv_style_t GUI_Style__class_jb2Uogg83p0stH__;
+extern lv_style_t GUI_Style__class_O3vmtiU810aw4c__;
+extern lv_style_t GUI_Style__class_DQ4kt4qPpym6rl__;
+extern lv_style_t GUI_Style__class_kQXih6nLC1SrH3__;
+extern lv_style_t GUI_Style__class_0LBWzZLzLfqETo__;
+extern lv_style_t GUI_Style__class_auBrxRjHQbK0ZC__;
+extern lv_style_t GUI_Style__class_kzXqB1csdmBWuI__;
+extern lv_style_t GUI_Style__class_4JlJ2ejqL1Psax__;
+extern lv_style_t GUI_Style__class_3YoiCm5zB32T9v__;
+extern lv_style_t GUI_Style__class_M62PYEgOaUQxR4__;
+extern lv_style_t GUI_Style__class_XequMyVxnqRNmJ__;
+extern lv_style_t GUI_Style__class_XzyMwqbFt9YVZL__;
+
+void GUI_load();
+
+void GUI_init();
+
+void GUI_refresh();
+
+void GUI_initHAL();
+void HAL_init();
+
+void GUI_initFramework();
+
+void GUI_loadContent();
+
+void GUI_initContent();
+
+void GUI_initTheme();
+
+void GUI_initScreens();
+
+void GUI_loadFirstScreen();
+
+void GUI_initScreenContents();
+
+void GUI_initScreenTexts();
+
+void GUI_initScreenStyles();
+
+void GUI_initGlobalStyles();
+
+void GUI_initAnimations();
+
+#ifdef __cplusplus
+} /*extern "C"*/
+#endif
+
+#endif
