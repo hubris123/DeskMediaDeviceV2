@@ -44,7 +44,7 @@ static void show_searching_overlay(bool show)
         lv_obj_clear_flag(s_searching_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t *lbl = lv_label_create(s_searching_overlay);
-        lv_label_set_text(lbl, "SEARCHING FOR NETWORKS");
+        lv_label_set_text(lbl, "STARTING WIFI RECEIVER");
         lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
         lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
         lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
@@ -255,6 +255,26 @@ static void populate_network_list(wifi_ap_record_t *aps, uint16_t count)
 
 static void wifi_scan_task(void *arg)
 {
+    // Show "starting" message, wait for WiFi to be ready
+    bsp_display_lock(0);
+    if (s_searching_overlay) {
+        lv_obj_t *lbl = lv_obj_get_child(s_searching_overlay, 0);
+        if (lbl) lv_label_set_text(lbl, "STARTING WIFI RECEIVER");
+    }
+    bsp_display_unlock();
+
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
+    // Switch to searching message
+    bsp_display_lock(0);
+    if (s_searching_overlay) {
+        lv_obj_t *lbl = lv_obj_get_child(s_searching_overlay, 0);
+        if (lbl) lv_label_set_text(lbl, "SEARCHING FOR NETWORKS");
+    }
+    bsp_display_unlock();
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     wifi_scan_config_t scan_cfg = {
         .ssid = NULL,
         .bssid = NULL,
@@ -361,6 +381,11 @@ void network_selector_ui_init(void)
 
     lv_obj_add_event_cb(GUI_Button__networkselector__networkexit,
                         networkexit_cb, LV_EVENT_CLICKED, NULL);
+
+    // Fix SquareLine (20,20) position offset on exit button + expand touch area
+    lv_obj_set_pos(GUI_Button__networkselector__networkexit, 0, 0);
+    lv_obj_set_ext_click_area(GUI_Button__networkselector__networkexit, 10);
+    lv_obj_set_ext_click_area(GUI_Button__networkselector__networksave, 10);
 
     // Force exit button style (red) — style class may have been lost in truncation
     lv_obj_set_style_bg_color(GUI_Button__networkselector__networkexit,

@@ -4,12 +4,18 @@
 #include "bsp/display.h"
 #include "audio.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/timers.h"
 #include <string.h>
 
 static const char *TAG = "Settings";
 
 // Stored zip code — persists between settings visits, default on first boot
 static char s_zipcode[16] = "88002";
+static char s_password[65] = "";
 
 // ── Event callbacks ──────────────────────────────────────────────────────────
 
@@ -116,6 +122,65 @@ static void mute_checkbox_cb(lv_event_t *e)
     ESP_LOGI(TAG, "Mute: %s", checked ? "ON" : "OFF");
 }
 
+// ── Factory reset ─────────────────────────────────────────────────────────────
+
+#define FACTORY_RESET_HOLD_MS   10000
+
+static TimerHandle_t s_reset_timer = NULL;
+
+static void factory_reset_timer_cb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    ESP_LOGW(TAG, "Factory reset triggered!");
+    audio_play_success();
+    vTaskDelay(pdMS_TO_TICKS(2000)); // let sound finish
+    nvs_flash_erase();
+    esp_restart();
+}
+
+static void mute_long_press_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESSED) {
+        if (!s_reset_timer) {
+            s_reset_timer = xTimerCreate("factory_reset", pdMS_TO_TICKS(FACTORY_RESET_HOLD_MS),
+                                         pdFALSE, NULL, factory_reset_timer_cb);
+        }
+        if (s_reset_timer) xTimerStart(s_reset_timer, 0);
+    } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+        if (s_reset_timer) xTimerStop(s_reset_timer, 0);
+    }
+}
+
+// ── Password keyboard ─────────────────────────────────────────────────────────
+
+static void password_field_cb(lv_event_t *e)
+{
+    (void)e;
+    lv_textarea_set_text(GUI_Textarea__keyboardpassword__textareapassword, "");
+    lv_screen_load(GUI_Screen__keyboardpassword);
+}
+
+static void password_save_cb(lv_event_t *e)
+{
+    (void)e;
+    const char *pwd = lv_textarea_get_text(GUI_Textarea__keyboardpassword__textareapassword);
+    if (pwd) {
+        strncpy(s_password, pwd, sizeof(s_password) - 1);
+        s_password[sizeof(s_password) - 1] = '\0';
+        lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_3, s_password);
+        ESP_LOGI(TAG, "Password saved");
+    }
+    audio_play_success();
+    lv_screen_load(GUI_Screen__settingswindow);
+}
+
+static void password_exit_cb(lv_event_t *e)
+{
+    (void)e;
+    lv_screen_load(GUI_Screen__settingswindow);
+}
+
 // ── Network selector ─────────────────────────────────────────────────────────
 
 static void wifi_field_cb(lv_event_t *e)
@@ -168,6 +233,16 @@ void settings_ui_init(void)
     lv_obj_add_event_cb(GUI_Checkbox__settingswindow__checkbox,
                         mute_checkbox_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);
+    // 10-second hold → factory reset
+    lv_obj_add_event_cb(GUI_Checkbox__settingswindow__checkbox,
+                        mute_long_press_cb,
+                        LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(GUI_Checkbox__settingswindow__checkbox,
+                        mute_long_press_cb,
+                        LV_EVENT_RELEASED, NULL);
+    lv_obj_add_event_cb(GUI_Checkbox__settingswindow__checkbox,
+                        mute_long_press_cb,
+                        LV_EVENT_PRESS_LOST, NULL);
 
     // Volume slider → set volume + play preview
     lv_obj_add_event_cb(GUI_Slider__settingswindow__slider,
@@ -204,6 +279,32 @@ void settings_ui_init(void)
     lv_obj_set_style_pad_top(GUI_Textarea__settingswindow__textarea_1, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_bottom(GUI_Textarea__settingswindow__textarea_1, 0, LV_PART_MAIN);
 
+    // WiFi name field styling
+    lv_obj_set_style_text_font(GUI_Textarea__settingswindow__textarea_2,
+                               &title_1, LV_PART_MAIN);
+    lv_obj_set_style_text_color(GUI_Textarea__settingswindow__textarea_2,
+                                lv_color_hex(0x111111), LV_PART_MAIN);
+    lv_obj_set_style_text_align(GUI_Textarea__settingswindow__textarea_2,
+                                LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(GUI_Textarea__settingswindow__textarea_2, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(GUI_Textarea__settingswindow__textarea_2, 0, LV_PART_MAIN);
+
+    // Password field styling
+    lv_obj_set_style_text_font(GUI_Textarea__settingswindow__textarea_3,
+                               &title_1, LV_PART_MAIN);
+    lv_obj_set_style_text_color(GUI_Textarea__settingswindow__textarea_3,
+                                lv_color_hex(0x111111), LV_PART_MAIN);
+    lv_obj_set_style_text_align(GUI_Textarea__settingswindow__textarea_3,
+                                LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(GUI_Textarea__settingswindow__textarea_3, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(GUI_Textarea__settingswindow__textarea_3, 0, LV_PART_MAIN);
+
+    // Fix SquareLine (20,20) offset on all exit buttons + expand touch area
+    lv_obj_set_pos(GUI_Button__keyboardzipcode__button_4, 0, 0);
+    lv_obj_set_ext_click_area(GUI_Button__keyboardzipcode__button_4, 10);
+    lv_obj_set_pos(GUI_Button__keyboardpassword__button_2, 0, 0);
+    lv_obj_set_ext_click_area(GUI_Button__keyboardpassword__button_2, 10);
+
     // Filter out +/- and . from the zip textarea — digits only
     lv_textarea_set_accepted_chars(GUI_Textarea__keyboardzipcode__textarea_zipcode,
                                    "0123456789");
@@ -220,6 +321,23 @@ void settings_ui_init(void)
     lv_obj_add_event_cb(GUI_Button__keyboardzipcode__button_4, touch_feedback_cb,
                         LV_EVENT_PRESSED, NULL);
 
+    // Touch feedback on keyboard key presses
+    lv_obj_add_event_cb(GUI_Keyboard__keyboardzipcode__keyboardzip,
+                        touch_feedback_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(GUI_Keyboard__keyboardpassword__keyboardpass,
+                        touch_feedback_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    // Keyboard font — bigger and black for both keyboards
+    // LV_PART_ITEMS targets the individual key buttons
+    lv_obj_set_style_text_font(GUI_Keyboard__keyboardzipcode__keyboardzip,
+                               &lv_font_montserrat_26, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(GUI_Keyboard__keyboardzipcode__keyboardzip,
+                                lv_color_hex(0x000000), LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(GUI_Keyboard__keyboardpassword__keyboardpass,
+                               &lv_font_montserrat_26, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(GUI_Keyboard__keyboardpassword__keyboardpass,
+                                lv_color_hex(0x000000), LV_PART_ITEMS | LV_STATE_DEFAULT);
+
     // Set initial brightness slider position
     int cur = bsp_display_brightness_get();
     if (cur < 0) cur = 80;
@@ -228,6 +346,18 @@ void settings_ui_init(void)
     // WiFi name field → open network selector screen
     lv_obj_add_event_cb(GUI_Textarea__settingswindow__textarea_2,
                         wifi_field_cb, LV_EVENT_CLICKED, NULL);
+
+    // Password field → open password keyboard
+    lv_obj_add_event_cb(GUI_Textarea__settingswindow__textarea_3,
+                        password_field_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__keyboardpassword__button_3,
+                        password_save_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__keyboardpassword__button_2,
+                        password_exit_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__keyboardpassword__button_3,
+                        touch_feedback_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(GUI_Button__keyboardpassword__button_2,
+                        touch_feedback_cb, LV_EVENT_PRESSED, NULL);
 
     // Network selector — init and register SSID-return callback
     network_selector_register_cb(on_network_selected);
