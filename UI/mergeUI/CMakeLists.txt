@@ -50,6 +50,7 @@ SET( SOURCES
     components/background_img_component.c
     components/comp.c
     components/comp_hook.c
+    components/textarea_component.c
     core/gui_core.c
     core/theme_manager.c
     core/ui_theme_manager.c

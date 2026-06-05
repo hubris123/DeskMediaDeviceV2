@@ -69,6 +69,11 @@ $<TARGET_FILE:__idf_nvs_flash>
 $<TARGET_FILE:idf::mbedtls>
 $<TARGET_FILE:__idf_esp_wifi>
 $<TARGET_FILE:__idf_esp_netif>
+$<TARGET_FILE:__idf_espressif__esp_wifi_remote>
+$<TARGET_FILE:__idf_espressif__eppp_link>
+$<TARGET_FILE:__idf_esp_eth>
+$<TARGET_FILE:__idf_espressif__esp_serial_slave_link>
+$<TARGET_FILE:__idf_espressif__esp_hosted>
 $<TARGET_FILE:__idf_esp_https_ota>
 $<TARGET_FILE:__idf_esp_security>
 $<TARGET_FILE:__idf_pthread>
@@ -202,6 +207,10 @@ $<TARGET_FILE:idf::bsp_extra>
 $<TARGET_FILE:__idf_chmorgan__esp-audio-player>
 $<TARGET_FILE:__idf_chmorgan__esp-file-iterator>
 $<TARGET_FILE:__idf_esp32_p4_wifi6_touch_lcd_4_3>
+$<TARGET_FILE:idf::espressif__esp_serial_slave_link>
+$<TARGET_FILE:idf::espressif__eppp_link>
+$<TARGET_FILE:idf::espressif__esp_hosted>
+$<TARGET_FILE:idf::espressif__esp_wifi_remote>
 $<TARGET_FILE:idf::main>
 $<TARGET_FILE:__idf_squareline_ui>
 $<TARGET_FILE:__idf_espressif__cjson>

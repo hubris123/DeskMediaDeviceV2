@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "network_selector.h"
 #include "GUI.h"
 #include "bsp/display.h"
 #include "audio.h"
@@ -115,6 +116,21 @@ static void mute_checkbox_cb(lv_event_t *e)
     ESP_LOGI(TAG, "Mute: %s", checked ? "ON" : "OFF");
 }
 
+// ── Network selector ─────────────────────────────────────────────────────────
+
+static void wifi_field_cb(lv_event_t *e)
+{
+    (void)e;
+    lv_screen_load(GUI_Screen__networkselector);
+}
+
+static void on_network_selected(const char *ssid)
+{
+    // Write chosen SSID into the WiFi name field in settings
+    lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_2, ssid);
+    ESP_LOGI(TAG, "WiFi network set to: %s", ssid);
+}
+
 // ── Public init ──────────────────────────────────────────────────────────────
 
 void settings_ui_init(void)
@@ -208,6 +224,14 @@ void settings_ui_init(void)
     int cur = bsp_display_brightness_get();
     if (cur < 0) cur = 80;
     lv_slider_set_value(GUI_Slider__settingswindow__slider_1, cur, LV_ANIM_OFF);
+
+    // WiFi name field → open network selector screen
+    lv_obj_add_event_cb(GUI_Textarea__settingswindow__textarea_2,
+                        wifi_field_cb, LV_EVENT_CLICKED, NULL);
+
+    // Network selector — init and register SSID-return callback
+    network_selector_register_cb(on_network_selected);
+    network_selector_ui_init();
 
     ESP_LOGI(TAG, "Settings UI initialized");
 }

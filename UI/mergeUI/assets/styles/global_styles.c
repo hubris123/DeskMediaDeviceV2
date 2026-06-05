@@ -1345,14 +1345,27 @@ void GUI_initGlobalStyles() {
   lv_style_set_flex_flow(&GUI_Style__class_kQXih6nLC1SrH3__,
                          LV_FLEX_FLOW_COLUMN);
   lv_style_set_flex_main_place(&GUI_Style__class_kQXih6nLC1SrH3__,
-                               LV_FLEX_ALIGN_CENTER);
+                               LV_FLEX_ALIGN_START);
   lv_style_set_flex_track_place(&GUI_Style__class_kQXih6nLC1SrH3__,
                                 LV_FLEX_ALIGN_CENTER);
   lv_style_set_flex_cross_place(&GUI_Style__class_kQXih6nLC1SrH3__,
                                 LV_FLEX_ALIGN_CENTER);
-  lv_style_set_pad_row(&GUI_Style__class_kQXih6nLC1SrH3__, 10);
+  lv_style_set_pad_row(&GUI_Style__class_kQXih6nLC1SrH3__, 0);
   lv_style_set_pad_column(&GUI_Style__class_kQXih6nLC1SrH3__, 0);
   lv_style_set_layout(&GUI_Style__class_kQXih6nLC1SrH3__, LV_LAYOUT_FLEX);
+
+  lv_style_init(&GUI_Style__class_QF2GdgY5xfVzQ0__);
+  lv_style_set_flex_flow(&GUI_Style__class_QF2GdgY5xfVzQ0__,
+                         LV_FLEX_FLOW_COLUMN);
+  lv_style_set_flex_main_place(&GUI_Style__class_QF2GdgY5xfVzQ0__,
+                               LV_FLEX_ALIGN_START);
+  lv_style_set_flex_track_place(&GUI_Style__class_QF2GdgY5xfVzQ0__,
+                                LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_cross_place(&GUI_Style__class_QF2GdgY5xfVzQ0__,
+                                LV_FLEX_ALIGN_START);
+  lv_style_set_pad_row(&GUI_Style__class_QF2GdgY5xfVzQ0__, 0);
+  lv_style_set_pad_column(&GUI_Style__class_QF2GdgY5xfVzQ0__, 0);
+  lv_style_set_layout(&GUI_Style__class_QF2GdgY5xfVzQ0__, LV_LAYOUT_FLEX);
 
   lv_style_init(&GUI_Style__class_0LBWzZLzLfqETo__);
   lv_style_set_text_font(&GUI_Style__class_0LBWzZLzLfqETo__, &font);
@@ -1364,18 +1377,31 @@ void GUI_initGlobalStyles() {
   lv_style_set_text_align(&GUI_Style__class_0LBWzZLzLfqETo__,
                           LV_TEXT_ALIGN_LEFT);
 
-  lv_style_init(&GUI_Style__class_auBrxRjHQbK0ZC__);
-  lv_style_set_bg_color(&GUI_Style__class_auBrxRjHQbK0ZC__,
-                        lv_color_make(255, 255, 255));
-  lv_style_set_bg_opa(&GUI_Style__class_auBrxRjHQbK0ZC__, 255);
-  lv_style_set_radius(&GUI_Style__class_auBrxRjHQbK0ZC__, 5);
+  lv_style_init(&GUI_Style__class_kpy4gFNlDBjSEj__);
+  lv_style_set_flex_flow(&GUI_Style__class_kpy4gFNlDBjSEj__,
+                         LV_FLEX_FLOW_COLUMN);
+  lv_style_set_flex_main_place(&GUI_Style__class_kpy4gFNlDBjSEj__,
+                               LV_FLEX_ALIGN_START);
+  lv_style_set_flex_track_place(&GUI_Style__class_kpy4gFNlDBjSEj__,
+                                LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_cross_place(&GUI_Style__class_kpy4gFNlDBjSEj__,
+                                LV_FLEX_ALIGN_START);
+  lv_style_set_pad_row(&GUI_Style__class_kpy4gFNlDBjSEj__, 1);
+  lv_style_set_pad_column(&GUI_Style__class_kpy4gFNlDBjSEj__, 0);
+  lv_style_set_layout(&GUI_Style__class_kpy4gFNlDBjSEj__, LV_LAYOUT_FLEX);
 
-  lv_style_init(&GUI_Style__class_kzXqB1csdmBWuI__);
-  lv_style_set_outline_color(&GUI_Style__class_kzXqB1csdmBWuI__,
-                             lv_color_make(0, 0, 0));
-  lv_style_set_outline_opa(&GUI_Style__class_kzXqB1csdmBWuI__, 255);
-  lv_style_set_outline_width(&GUI_Style__class_kzXqB1csdmBWuI__, 2);
-  lv_style_set_outline_pad(&GUI_Style__class_kzXqB1csdmBWuI__, 0);
+  lv_style_init(&GUI_Style__class_BaRRq8Hq0lhEou__);
+  lv_style_set_flex_flow(&GUI_Style__class_BaRRq8Hq0lhEou__,
+                         LV_FLEX_FLOW_COLUMN);
+  lv_style_set_flex_main_place(&GUI_Style__class_BaRRq8Hq0lhEou__,
+                               LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_track_place(&GUI_Style__class_BaRRq8Hq0lhEou__,
+                                LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_cross_place(&GUI_Style__class_BaRRq8Hq0lhEou__,
+                                LV_FLEX_ALIGN_START);
+  lv_style_set_pad_row(&GUI_Style__class_BaRRq8Hq0lhEou__, 1);
+  lv_style_set_pad_column(&GUI_Style__class_BaRRq8Hq0lhEou__, 0);
+  lv_style_set_layout(&GUI_Style__class_BaRRq8Hq0lhEou__, LV_LAYOUT_FLEX);
 
   lv_style_init(&GUI_Style__class_4JlJ2ejqL1Psax__);
   lv_style_set_flex_flow(&GUI_Style__class_4JlJ2ejqL1Psax__, LV_FLEX_FLOW_ROW);

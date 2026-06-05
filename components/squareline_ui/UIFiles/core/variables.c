@@ -130,11 +130,14 @@ lv_obj_t *GUI_Screen__networkselector;
 lv_obj_t *GUI_Container__networkselector__container_10;
 lv_obj_t *GUI_Panel__networkselector__panel_2;
 lv_obj_t *GUI_Label__networkselector__label_8;
-lv_obj_t *GUI_Textarea__networkselector__textarea;
-lv_obj_t *GUI_Container__networkselector__container_11;
-lv_obj_t *GUI_Button__networkselector__button_7;
+lv_obj_t *GUI_Container__networkselector__container_5;
+lv_obj_t *GUI_Container__networkselector__contscroll;
+lv_obj_t *GUI_Container__networkselector__contbottom;
+lv_obj_t *GUI_Container__networkselector__buttonsbottom;
+
+lv_obj_t *GUI_Button__networkselector__networksave;
 lv_obj_t *GUI_Label__networkselector__label_14;
-lv_obj_t *GUI_Button__networkselector__button_6;
+lv_obj_t *GUI_Button__networkselector__networkexit;
 lv_obj_t *GUI_Label__networkselector__label_13;
 
 lv_obj_t *GUI_Screen__screen;
@@ -288,3 +291,9 @@ lv_style_t GUI_Style__class_3YoiCm5zB32T9v__;
 lv_style_t GUI_Style__class_M62PYEgOaUQxR4__;
 lv_style_t GUI_Style__class_XequMyVxnqRNmJ__;
 lv_style_t GUI_Style__class_XzyMwqbFt9YVZL__;
+
+lv_style_t GUI_Style__class_S1ccQxKirdSwrF__;
+
+lv_style_t GUI_Style__class_QF2GdgY5xfVzQ0__;
+lv_style_t GUI_Style__class_kpy4gFNlDBjSEj__;
+lv_style_t GUI_Style__class_BaRRq8Hq0lhEou__;

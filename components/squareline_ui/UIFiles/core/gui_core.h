@@ -190,4 +190,22 @@ void GUI_initAnimations();
 } /*extern "C"*/
 #endif
 
+
+extern lv_style_t GUI_Style__class_HIiXHuL38TNuIt__;
+extern lv_style_t GUI_Style__class_HldN8l5VcFDMxv__;
+extern lv_style_t GUI_Style__class_IYhAyYrDrwaPbi__;
+extern lv_style_t GUI_Style__class_Na1ZxCw4bLah1N__;
+extern lv_style_t GUI_Style__class_S1ccQxKirdSwrF__;
+extern lv_style_t GUI_Style__class_TYxKoIRA89pYki__;
+extern lv_style_t GUI_Style__class_WEVkYUZKphwXIY__;
+extern lv_style_t GUI_Style__class_WbVp4cvhuaek12__;
+extern lv_style_t GUI_Style__class_XiuhNUm3yt1F7y__;
+extern lv_style_t GUI_Style__class_bEwEjPfvF2IHLl__;
+extern lv_style_t GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop;
+extern lv_style_t GUI_Style__class_qiMEmWPuCKrDEz__;
+extern lv_style_t GUI_Style__class_xexLdCVLH1nhdG__;
+
+extern lv_style_t GUI_Style__class_QF2GdgY5xfVzQ0__;
+extern lv_style_t GUI_Style__class_kpy4gFNlDBjSEj__;
+extern lv_style_t GUI_Style__class_BaRRq8Hq0lhEou__;
 #endif

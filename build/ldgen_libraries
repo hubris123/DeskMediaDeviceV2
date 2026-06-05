@@ -69,6 +69,11 @@ C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/nvs_flash/libnv
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/mbedtls/libmbedtls.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp_wifi/libesp_wifi.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp_netif/libesp_netif.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_wifi_remote/libespressif__esp_wifi_remote.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__eppp_link/libespressif__eppp_link.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp_eth/libesp_eth.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_serial_slave_link/libespressif__esp_serial_slave_link.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_hosted/libespressif__esp_hosted.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp_https_ota/libesp_https_ota.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp_security/libesp_security.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/pthread/libpthread.a
@@ -202,6 +207,10 @@ C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/bsp_extra/libbs
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/chmorgan__esp-audio-player/libchmorgan__esp-audio-player.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/chmorgan__esp-file-iterator/libchmorgan__esp-file-iterator.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/esp32_p4_wifi6_touch_lcd_4_3/libesp32_p4_wifi6_touch_lcd_4_3.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_serial_slave_link/libespressif__esp_serial_slave_link.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__eppp_link/libespressif__eppp_link.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_hosted/libespressif__esp_hosted.a
+C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__esp_wifi_remote/libespressif__esp_wifi_remote.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/main/libmain.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/squareline_ui/libsquareline_ui.a
 C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/espressif__cjson/libespressif__cjson.a

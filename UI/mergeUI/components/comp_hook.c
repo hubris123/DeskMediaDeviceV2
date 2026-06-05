@@ -5,3 +5,6 @@
 
 void ui_comp_background_img_create_hook(lv_obj_t *comp) {
 }
+
+void ui_comp_textarea_create_hook(lv_obj_t *comp) {
+}

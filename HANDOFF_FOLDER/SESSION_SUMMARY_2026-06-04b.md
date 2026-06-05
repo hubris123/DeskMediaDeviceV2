@@ -63,6 +63,21 @@ Merged `UI/mergeUI/` into `components/squareline_ui/UIFiles/`. Key steps:
 4. Once WiFi works → Open-Meteo API → real weather data
 5. NVS persistence — save zip/SSID/password across reboots
 
+## Audio Player on Home Screen (merged at end of session)
+New widgets in home screen (from mergeUI/screens/home.c):
+- `GUI_Container__home__music_player` — container
+- `GUI_Button__home__buttonup` + `GUI_Image__home__image_34` (up1 image)
+- `GUI_Button__home__buttonplay` + `GUI_Image__home__image_35` (play image)
+- `GUI_Button__home__buttondown` + `GUI_Image__home__image_36` (down1 image)
+- `GUI_Label__home__label_15`, `GUI_Label__home__label_16` (track/artist labels)
+These buttons are NOT yet wired up in code — next session should add callbacks in settings.c or a new audio_player.c
+
+## Final UI Merge Notes (home.c)
+- home.c was also updated from mergeUI at end of session (commit 761dbfb)
+- home_styles_backup.c updated to 763 lines with new style
+- Style rename applied to home.c: `HxADxF6juDKWfB__` → `jyulY1Pqi8nomS__homepanelsgreydrop`
+- variables.h has all 115 extern style declarations added
+
 ## Tool Notes
 - `fix_ui_export.py` in project root — run after every SquareLine export
 - When merging new UI: check variables.h for missing extern style declarations

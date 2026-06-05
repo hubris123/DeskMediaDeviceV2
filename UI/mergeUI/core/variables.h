@@ -136,12 +136,14 @@ extern lv_obj_t *GUI_Label__settingswindow__label_2;
 extern lv_obj_t *GUI_Screen__networkselector;
 extern lv_obj_t *GUI_Container__networkselector__container_10;
 extern lv_obj_t *GUI_Panel__networkselector__panel_2;
+extern lv_obj_t *GUI_Container__networkselector__container_5;
 extern lv_obj_t *GUI_Label__networkselector__label_8;
-extern lv_obj_t *GUI_Textarea__networkselector__textarea;
-extern lv_obj_t *GUI_Container__networkselector__container_11;
-extern lv_obj_t *GUI_Button__networkselector__button_7;
+extern lv_obj_t *GUI_Container__networkselector__contscroll;
+extern lv_obj_t *GUI_Container__networkselector__contbottom;
+extern lv_obj_t *GUI_Container__networkselector__buttonsbottom;
+extern lv_obj_t *GUI_Button__networkselector__networksave;
 extern lv_obj_t *GUI_Label__networkselector__label_14;
-extern lv_obj_t *GUI_Button__networkselector__button_6;
+extern lv_obj_t *GUI_Button__networkselector__networkexit;
 extern lv_obj_t *GUI_Label__networkselector__label_13;
 
 extern lv_obj_t *GUI_Screen__screen;

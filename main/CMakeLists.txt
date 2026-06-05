@@ -8,6 +8,7 @@ idf_component_register(
         storage/nvs_storage.c
         ui/data_binding.c
         ui/settings.c
+        ui/network_selector.c
         weather_icons.c
         weather_display.c
     INCLUDE_DIRS
@@ -27,4 +28,9 @@ idf_component_register(
         esp_codec_dev
         lvgl
         chmorgan__esp-libhelix-mp3
+        esp_wifi_remote
+        esp_wifi
+        esp_event
+        esp_netif
 )
+
