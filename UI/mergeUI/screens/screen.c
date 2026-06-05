@@ -231,6 +231,27 @@ void GUI_initScreen__screen() {
   lv_obj_set_size(GUI_Image__screen__image_33, LV_SIZE_CONTENT,
                   LV_SIZE_CONTENT);
 
+  GUI_Image__screen__image_37 = lv_image_create(GUI_Screen__screen);
+  lv_obj_add_flag(GUI_Image__screen__image_37, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__screen__image_37, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__screen__image_37, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Image__screen__image_37, LV_SIZE_CONTENT,
+                  LV_SIZE_CONTENT);
+
+  GUI_Image__screen__image_38 = lv_image_create(GUI_Screen__screen);
+  lv_obj_add_flag(GUI_Image__screen__image_38, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__screen__image_38, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__screen__image_38, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Image__screen__image_38, LV_SIZE_CONTENT,
+                  LV_SIZE_CONTENT);
+
+  GUI_Image__screen__image_40 = lv_image_create(GUI_Screen__screen);
+  lv_obj_add_flag(GUI_Image__screen__image_40, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__screen__image_40, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__screen__image_40, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Image__screen__image_40, LV_SIZE_CONTENT,
+                  LV_SIZE_CONTENT);
+
   GUI_initScreenStyles__screen();
   GUI_initScreenTexts__screen();
 }
@@ -340,4 +361,13 @@ void GUI_initScreenStyles__screen() {
 
   lv_image_set_src(GUI_Image__screen__image_33,
                    &upload_network_e6b6f98e6cbd4491bfe5310d621d416f_png);
+
+  lv_image_set_src(GUI_Image__screen__image_37,
+                   &upload_networkred_45539a8ee52f46688e0fbeb4c45b9ddf_png);
+
+  lv_image_set_src(GUI_Image__screen__image_38,
+                   &upload_stopbutton_a37c756148194bc181010db779e72ea4_png);
+
+  lv_image_set_src(GUI_Image__screen__image_40,
+                   &upload_music_btn_red_410df9ce0fe84d7ea36d6e6554682ce8_png);
 }

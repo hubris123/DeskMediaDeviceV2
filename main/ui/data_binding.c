@@ -88,13 +88,14 @@ static const lv_image_dsc_t *get_weather_icon_22(int icon_num)
 void ui_set_default_weather(void)
 {
     // Current weather
-    lv_label_set_text(GUI_Label__home__CURRENTTEMPQ,     "--°F");
-    lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ,   "--°F");
-    lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, "--%");
-    lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,   "--");
-    lv_label_set_text(GUI_Label__home__LOCATIONQ,        "Las Cruces, NM");
-    lv_label_set_text(GUI_Label__home__CURRENTTIMEQ,     "--:--");
-    lv_label_set_text(GUI_Label__home__PRECIPITATIONQ,   "0.00 IN");
+    lv_label_set_text(GUI_Label__home__CURRENTTEMPQ,          "--°F");
+    lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ,        "--°F");
+    lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ,      "--%");
+    lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,        "--");
+    lv_label_set_text(GUI_Label__home__LOCATIONQ,             "Las Cruces, NM");
+    lv_label_set_text(GUI_Label__home__CURRENTTIMEQ,          "--:--");
+    lv_label_set_text(GUI_Label__home__PRECIPITATIONQ,        "--%");
+    lv_label_set_text(GUI_Label__home__details_wind_speed_lbl, "--");
 
     // Hourly forecast
     lv_obj_t *time_labels[] = {

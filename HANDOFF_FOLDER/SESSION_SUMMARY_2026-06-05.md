@@ -99,13 +99,19 @@ idf.py -p COM4 flash
 - `GUI_Panel__home__panel_3` (music player dark panel) — height set to 220 in code after merge resets to 210
 - global_styles.c is ALWAYS truncated from SquareLine — fix with regex strip + append `}\n`
 
+## Zip Code Update Bug (FIXED end of session)
+- Changing zip in settings did NOT trigger weather update
+- Root cause: `zipcode_save_cb` updates `s_zipcode` when keyboard save is pressed, so by the time `save_btn_cb` runs, `strcmp` sees them as equal and skips the update
+- Fix: removed strcmp check — `save_btn_cb` always calls `weather_set_location(zip)` on save
+- Power cycle after changing zip still works too (loads from NVS on boot)
+
 ## Next Tasks
 1. **Music player** — wire up buttonup/buttonplay/buttondown callbacks (widgets exist, unwired)
-2. **WiFi connection on settings save** — currently saves credentials but doesn't reconnect automatically
-3. **NVS zip code → weather update** — changing zip in settings should trigger new geocode + weather fetch
-4. **Lock icon** — PNG to be added by user next UI export
-5. **FPS counter** — still showing bottom-left, hide for production
-6. **Weather refresh interval** — currently 15 minutes, consider making configurable
+2. **WiFi reconnect on settings save** — currently saves credentials but doesn't reconnect automatically; requires `esp_wifi_set_config()` + `esp_wifi_connect()` after save
+3. **Lock icon** — PNG to be added by user next UI export, replace LV_SYMBOL_WARNING
+4. **FPS counter** — still showing bottom-left, hide for production
+5. **Weather refresh interval** — currently 15 minutes, consider making configurable in settings
+6. **Searching overlay** — shows on every network selector open even if WiFi already warmed up; could check `wifi_manager_is_connected()` and skip the 3-second wait
 
 ## Last git commit
 Check `git log --oneline -3`

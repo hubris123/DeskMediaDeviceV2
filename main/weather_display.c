@@ -51,8 +51,8 @@ void weather_display_update(const weather_display_t *w)
     snprintf(buf, sizeof(buf), "%d%%", w->current_humidity);
     lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, buf);
 
-    /* Precipitation in inches */
-    snprintf(buf, sizeof(buf), "%.2f IN", w->current_precip_in);
+    /* Chance of rain (next hour precipitation probability) */
+    snprintf(buf, sizeof(buf), "%d%%", w->current_precip_prob);
     lv_label_set_text(GUI_Label__home__PRECIPITATIONQ, buf);
 
     /* Wind speed + direction (child label inside the container) */

@@ -3,6 +3,20 @@
 void GUI_initScreen__home() {
   GUI_Screen__home = lv_obj_create(NULL);
   lv_obj_remove_flag(GUI_Screen__home, LV_OBJ_FLAG_SCROLLABLE);
+
+  GUI_Panel__home__musicscrollbg = lv_obj_create(GUI_Screen__home);
+  lv_obj_remove_flag(GUI_Panel__home__musicscrollbg, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Panel__home__musicscrollbg, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Panel__home__musicscrollbg, 179, 224);
+  lv_obj_set_size(GUI_Panel__home__musicscrollbg, 424, 24);
+
+  GUI_Label__home__musicscrolllabel =
+      lv_label_create(GUI_Panel__home__musicscrollbg);
+  lv_label_set_long_mode(GUI_Label__home__musicscrolllabel, LV_LABEL_LONG_CLIP);
+  lv_obj_set_align(GUI_Label__home__musicscrolllabel, LV_ALIGN_CENTER);
+  lv_obj_set_y(GUI_Label__home__musicscrolllabel, 6);
+  lv_obj_set_size(GUI_Label__home__musicscrolllabel, 410, 20);
+
   GUI_Container__home__container_13 = lv_obj_create(GUI_Screen__home);
   lv_obj_remove_style_all(GUI_Container__home__container_13);
   lv_obj_remove_flag(GUI_Container__home__container_13, LV_OBJ_FLAG_CLICKABLE);
@@ -65,7 +79,7 @@ void GUI_initScreen__home() {
   lv_obj_remove_flag(GUI_Container__home__current_status_cont,
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_pos(GUI_Container__home__current_status_cont, 16, 151);
-  lv_obj_set_size(GUI_Container__home__current_status_cont, 196, 84);
+  lv_obj_set_size(GUI_Container__home__current_status_cont, 209, 78);
 
   GUI_Image__home__60X60ICONQ =
       lv_image_create(GUI_Container__home__current_status_cont);
@@ -628,6 +642,31 @@ void GUI_initScreen__home() {
   lv_obj_set_align(GUI_Image__home__image_36, LV_ALIGN_CENTER);
   lv_obj_set_pos(GUI_Image__home__image_36, -8, -6);
   lv_obj_set_size(GUI_Image__home__image_36, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+
+  GUI_Container__home__musicbuttoncont = lv_obj_create(GUI_Screen__home);
+  lv_obj_remove_style_all(GUI_Container__home__musicbuttoncont);
+  lv_obj_remove_flag(GUI_Container__home__musicbuttoncont, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(GUI_Container__home__musicbuttoncont, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Container__home__musicbuttoncont, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Container__home__musicbuttoncont, -68, 203);
+  lv_obj_set_size(GUI_Container__home__musicbuttoncont, 77, 65);
+
+  GUI_Panel__home__musicbuttonpanel = lv_obj_create(GUI_Container__home__musicbuttoncont);
+  lv_obj_remove_flag(GUI_Panel__home__musicbuttonpanel, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Panel__home__musicbuttonpanel, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Panel__home__musicbuttonpanel, 60, 60);
+
+  GUI_Button__home__musicbuttongrey = lv_button_create(GUI_Panel__home__musicbuttonpanel);
+  lv_obj_set_align(GUI_Button__home__musicbuttongrey, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Button__home__musicbuttongrey, 20, 20);
+  lv_obj_set_size(GUI_Button__home__musicbuttongrey, 44, 44);
+
+  GUI_Image__home__musicbtn = lv_image_create(GUI_Button__home__musicbuttongrey);
+  lv_obj_add_flag(GUI_Image__home__musicbtn, LV_OBJ_FLAG_ADV_HITTEST);
+  lv_obj_remove_flag(GUI_Image__home__musicbtn, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Image__home__musicbtn, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Image__home__musicbtn, -8, -6);
+  lv_obj_set_size(GUI_Image__home__musicbtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
 
   GUI_initScreenStyles__home();
   GUI_initScreenTexts__home();
@@ -1398,5 +1437,62 @@ void GUI_initScreenStyles__home() {
   lv_obj_add_style(GUI_Image__home__image_36,
                    &GUI_Style__class_TYxKoIRA89pYki__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
-}
 
+  lv_obj_add_style(GUI_Container__home__musicbuttoncont,
+                   &GUI_Style__class_QumCJvXClgKqXt__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Panel__home__musicbuttonpanel,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__musicbuttonpanel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__musicbuttonpanel, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Panel__home__musicbuttonpanel,
+                   &GUI_Style__class_9NSNgaDRtTcYTS__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Button__home__musicbuttongrey,
+                   &GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_COLOR, _ui_theme_bg_color_dark_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_SHADOW_OPA, _ui_theme_bg_opa_dark_gray);
+  lv_obj_add_style(GUI_Button__home__musicbuttongrey,
+                   &GUI_Style__class_Eh5lp5suTww3t9__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_light_gray);
+  ui_object_set_themeable_style_property(
+      GUI_Button__home__musicbuttongrey, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_light_gray);
+
+  lv_image_set_src(GUI_Image__home__musicbtn,
+                   &upload_music_btn_ab57fd2bae02484db3c1484de8de889c_png);
+
+  lv_obj_add_style(GUI_Image__home__musicbtn,
+                   &GUI_Style__class_341wNmAsuFcHIa__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+}

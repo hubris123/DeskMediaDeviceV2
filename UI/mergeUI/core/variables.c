@@ -2,6 +2,8 @@
 
 lv_obj_t *GUI_Screen__home;
 lv_obj_t *GUI_Container__home__container_13;
+lv_obj_t *GUI_Panel__home__musicscrollbg;
+lv_obj_t *GUI_Label__home__musicscrolllabel;
 lv_obj_t *GUI_Container__home__weatherwidget;
 lv_obj_t *GUI_Panel__home__weather_panel;
 lv_obj_t *GUI_Container__home__main_display_cont;
@@ -74,6 +76,10 @@ lv_obj_t *GUI_Image__home__image_35;
 lv_obj_t *GUI_Textarea__home__textarea_4;
 lv_obj_t *GUI_Button__home__buttondown;
 lv_obj_t *GUI_Image__home__image_36;
+lv_obj_t *GUI_Container__home__musicbuttoncont;
+lv_obj_t *GUI_Panel__home__musicbuttonpanel;
+lv_obj_t *GUI_Button__home__musicbuttongrey;
+lv_obj_t *GUI_Image__home__musicbtn;
 
 lv_obj_t *GUI_Screen__keyboardpassword;
 lv_obj_t *GUI_Container__keyboardpassword__container;
@@ -171,11 +177,16 @@ lv_obj_t *GUI_Image__screen__image_30;
 lv_obj_t *GUI_Image__screen__image_31;
 lv_obj_t *GUI_Image__screen__image_32;
 lv_obj_t *GUI_Image__screen__image_33;
+lv_obj_t *GUI_Image__screen__image_37;
+lv_obj_t *GUI_Image__screen__image_38;
+lv_obj_t *GUI_Image__screen__image_40;
 
 lv_style_t GUI_Style__class_8rQJj2WR7KS5BW__;
+lv_style_t GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop;
+lv_style_t GUI_Style__class_5bE6Rj3PdUsKzR__;
+lv_style_t GUI_Style__class_wCVCeNc0Hy2Pc9__;
 lv_style_t GUI_Style__class_rh9OIkK6YioF9J__test1style;
 lv_style_t GUI_Style__class_qx6LXcI5pACvOu__;
-lv_style_t GUI_Style__class_jyulY1Pqi8nomS__homepanelsgreydrop;
 lv_style_t GUI_Style__class_l2KF3gLqvrvgNA__;
 lv_style_t GUI_Style__class_QPHwtUHlUxUOEn__;
 lv_style_t GUI_Style__class_lp2SW4VTZ90VZp__;
@@ -230,6 +241,10 @@ lv_style_t GUI_Style__class_IYhAyYrDrwaPbi__;
 lv_style_t GUI_Style__class_Na1ZxCw4bLah1N__;
 lv_style_t GUI_Style__class_XiuhNUm3yt1F7y__;
 lv_style_t GUI_Style__class_TYxKoIRA89pYki__;
+lv_style_t GUI_Style__class_QumCJvXClgKqXt__;
+lv_style_t GUI_Style__class_9NSNgaDRtTcYTS__;
+lv_style_t GUI_Style__class_Eh5lp5suTww3t9__;
+lv_style_t GUI_Style__class_341wNmAsuFcHIa__;
 lv_style_t GUI_Style__class_AvvcYB4wlpzNqr__;
 lv_style_t GUI_Style__class_iwIHCP82XdjJdR__;
 lv_style_t GUI_Style__class_3D1LJzVb3VpFXw__;

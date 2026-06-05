@@ -29,6 +29,7 @@ LV_IMG_DECLARE(upload_up1_09eda56b61fb420bb4679dd39a4c9782_png);
 LV_IMG_DECLARE(upload_play_6c36b149bbde4d87af41769e62ca887f_png);
 LV_FONT_DECLARE(font);
 LV_IMG_DECLARE(upload_down1_991ef596d2b7435c9663fdfd256c222a_png);
+LV_IMG_DECLARE(upload_music_btn_ab57fd2bae02484db3c1484de8de889c_png);
 LV_FONT_DECLARE(number_1);
 LV_IMG_DECLARE(upload_networkred_45539a8ee52f46688e0fbeb4c45b9ddf_png);
 LV_IMG_DECLARE(upload_2s_37e4aa2fa7024542b513edb68eebbfa3_png);
@@ -59,5 +60,7 @@ LV_IMG_DECLARE(upload_26_28f0c2296c7742bbad7e6ed91f80b81a_png);
 LV_IMG_DECLARE(upload_33_b02a9c2486c94766bd9856f56db21f1f_png);
 LV_IMG_DECLARE(upload_34_4c27b41ae3a1496089c4d14141615cbd_png);
 LV_IMG_DECLARE(upload_35_cc7cb52862b9422aba85d07b935bc63c_png);
+LV_IMG_DECLARE(upload_stopbutton_a37c756148194bc181010db779e72ea4_png);
+LV_IMG_DECLARE(upload_music_btn_red_410df9ce0fe84d7ea36d6e6554682ce8_png);
 
 #endif

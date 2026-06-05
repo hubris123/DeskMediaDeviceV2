@@ -1439,4 +1439,61 @@ void GUI_initGlobalStyles() {
   lv_style_set_flex_cross_place(&GUI_Style__class_3YoiCm5zB32T9v__,
                                 LV_FLEX_ALIGN_CENTER);
   lv_style_set_pad_row(&GUI_Style__class_3YoiCm5zB32T9v__, 0);
+
+  lv_style_init(&GUI_Style__class_5bE6Rj3PdUsKzR__);
+  lv_style_set_pad_left(&GUI_Style__class_5bE6Rj3PdUsKzR__, 0);
+  lv_style_set_pad_right(&GUI_Style__class_5bE6Rj3PdUsKzR__, 0);
+  lv_style_set_pad_top(&GUI_Style__class_5bE6Rj3PdUsKzR__, 0);
+  lv_style_set_pad_bottom(&GUI_Style__class_5bE6Rj3PdUsKzR__, 8);
+
+  lv_style_init(&GUI_Style__class_wCVCeNc0Hy2Pc9__);
+  lv_style_set_text_color(&GUI_Style__class_wCVCeNc0Hy2Pc9__, lv_color_make(255, 255, 255));
+  lv_style_set_text_opa(&GUI_Style__class_wCVCeNc0Hy2Pc9__, 255);
+  lv_style_set_text_letter_space(&GUI_Style__class_wCVCeNc0Hy2Pc9__, 0);
+  lv_style_set_text_line_space(&GUI_Style__class_wCVCeNc0Hy2Pc9__, 0);
+  lv_style_set_text_align(&GUI_Style__class_wCVCeNc0Hy2Pc9__, LV_TEXT_ALIGN_LEFT);
+
+  lv_style_init(&GUI_Style__class_QumCJvXClgKqXt__);
+  lv_style_set_flex_flow(&GUI_Style__class_QumCJvXClgKqXt__, LV_FLEX_FLOW_COLUMN);
+  lv_style_set_flex_main_place(&GUI_Style__class_QumCJvXClgKqXt__, LV_FLEX_ALIGN_END);
+  lv_style_set_flex_track_place(&GUI_Style__class_QumCJvXClgKqXt__, LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_cross_place(&GUI_Style__class_QumCJvXClgKqXt__, LV_FLEX_ALIGN_START);
+  lv_style_set_pad_row(&GUI_Style__class_QumCJvXClgKqXt__, 0);
+  lv_style_set_pad_column(&GUI_Style__class_QumCJvXClgKqXt__, 0);
+  lv_style_set_layout(&GUI_Style__class_QumCJvXClgKqXt__, LV_LAYOUT_FLEX);
+
+  lv_style_init(&GUI_Style__class_9NSNgaDRtTcYTS__);
+  lv_style_set_pad_left(&GUI_Style__class_9NSNgaDRtTcYTS__, 0);
+  lv_style_set_pad_right(&GUI_Style__class_9NSNgaDRtTcYTS__, 0);
+  lv_style_set_pad_top(&GUI_Style__class_9NSNgaDRtTcYTS__, 0);
+  lv_style_set_pad_bottom(&GUI_Style__class_9NSNgaDRtTcYTS__, 8);
+  lv_style_set_flex_flow(&GUI_Style__class_9NSNgaDRtTcYTS__, LV_FLEX_FLOW_COLUMN);
+  lv_style_set_flex_main_place(&GUI_Style__class_9NSNgaDRtTcYTS__, LV_FLEX_ALIGN_END);
+  lv_style_set_flex_track_place(&GUI_Style__class_9NSNgaDRtTcYTS__, LV_FLEX_ALIGN_CENTER);
+  lv_style_set_flex_cross_place(&GUI_Style__class_9NSNgaDRtTcYTS__, LV_FLEX_ALIGN_START);
+  lv_style_set_pad_row(&GUI_Style__class_9NSNgaDRtTcYTS__, 9);
+  lv_style_set_pad_column(&GUI_Style__class_9NSNgaDRtTcYTS__, 0);
+  lv_style_set_layout(&GUI_Style__class_9NSNgaDRtTcYTS__, LV_LAYOUT_FLEX);
+
+  lv_style_init(&GUI_Style__class_Eh5lp5suTww3t9__);
+  lv_style_set_bg_color(&GUI_Style__class_Eh5lp5suTww3t9__, lv_color_make(155, 155, 155));
+  lv_style_set_bg_opa(&GUI_Style__class_Eh5lp5suTww3t9__, 255);
+  lv_style_set_radius(&GUI_Style__class_Eh5lp5suTww3t9__, 5);
+
+  lv_style_init(&GUI_Style__class_341wNmAsuFcHIa__);
+  lv_style_set_max_height(&GUI_Style__class_341wNmAsuFcHIa__, 8000);
+  lv_style_set_max_width(&GUI_Style__class_341wNmAsuFcHIa__, 8000);
+  lv_style_set_min_height(&GUI_Style__class_341wNmAsuFcHIa__, 0);
+  lv_style_set_min_width(&GUI_Style__class_341wNmAsuFcHIa__, 0);
+  lv_style_set_transform_pivot_x(&GUI_Style__class_341wNmAsuFcHIa__, 0);
+  lv_style_set_transform_pivot_y(&GUI_Style__class_341wNmAsuFcHIa__, 0);
+  lv_style_set_transform_rotation(&GUI_Style__class_341wNmAsuFcHIa__, 0);
+  lv_style_set_transform_scale_x(&GUI_Style__class_341wNmAsuFcHIa__, 400);
+  lv_style_set_transform_scale_y(&GUI_Style__class_341wNmAsuFcHIa__, 400);
+
+  lv_style_init(&GUI_Style__class_EQHHuxrbsUsFwQ__);
+  lv_style_set_outline_color(&GUI_Style__class_EQHHuxrbsUsFwQ__, lv_color_make(0, 0, 0));
+  lv_style_set_outline_opa(&GUI_Style__class_EQHHuxrbsUsFwQ__, 255);
+  lv_style_set_outline_width(&GUI_Style__class_EQHHuxrbsUsFwQ__, 2);
+  lv_style_set_outline_pad(&GUI_Style__class_EQHHuxrbsUsFwQ__, 0);
 }

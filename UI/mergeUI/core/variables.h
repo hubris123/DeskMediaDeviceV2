@@ -9,6 +9,8 @@ extern "C" {
 
 extern lv_obj_t *GUI_Screen__home;
 extern lv_obj_t *GUI_Container__home__container_13;
+extern lv_obj_t *GUI_Panel__home__musicscrollbg;
+extern lv_obj_t *GUI_Label__home__musicscrolllabel;
 extern lv_obj_t *GUI_Container__home__weatherwidget;
 extern lv_obj_t *GUI_Panel__home__weather_panel;
 extern lv_obj_t *GUI_Container__home__main_display_cont;
@@ -81,6 +83,10 @@ extern lv_obj_t *GUI_Image__home__image_35;
 extern lv_obj_t *GUI_Textarea__home__textarea_4;
 extern lv_obj_t *GUI_Button__home__buttondown;
 extern lv_obj_t *GUI_Image__home__image_36;
+extern lv_obj_t *GUI_Container__home__musicbuttoncont;
+extern lv_obj_t *GUI_Panel__home__musicbuttonpanel;
+extern lv_obj_t *GUI_Button__home__musicbuttongrey;
+extern lv_obj_t *GUI_Image__home__musicbtn;
 
 extern lv_obj_t *GUI_Screen__keyboardpassword;
 extern lv_obj_t *GUI_Container__keyboardpassword__container;
@@ -178,6 +184,9 @@ extern lv_obj_t *GUI_Image__screen__image_30;
 extern lv_obj_t *GUI_Image__screen__image_31;
 extern lv_obj_t *GUI_Image__screen__image_32;
 extern lv_obj_t *GUI_Image__screen__image_33;
+extern lv_obj_t *GUI_Image__screen__image_37;
+extern lv_obj_t *GUI_Image__screen__image_38;
+extern lv_obj_t *GUI_Image__screen__image_40;
 
 #ifdef __cplusplus
 } /*extern "C"*/

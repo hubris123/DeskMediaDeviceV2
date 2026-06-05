@@ -20,6 +20,7 @@
 #include "bsp/display.h"
 #include "bsp_board_extra.h"
 #include "esp_codec_dev.h"
+#include "esp_heap_caps.h"
 
 // Weather system integration
 #include "GUI.h"
@@ -36,7 +37,7 @@
 
 static const char *TAG = "DeskMediaDevice";
 
-#define AUDIO_SAMPLE_RATE       16000
+#define AUDIO_SAMPLE_RATE       44100  // default; mp3_task reconfigures per-file
 #define AUDIO_MCLK_MULTIPLE     384
 #define AUDIO_MCLK_FREQ_HZ      (AUDIO_SAMPLE_RATE * AUDIO_MCLK_MULTIPLE)
 #define AUDIO_BUFFER_SIZE       512
@@ -49,12 +50,90 @@ static char wav_file_path[256] = "";
 static bool is_playing = false;
 static TaskHandle_t audio_task_handle = NULL;
 static esp_codec_dev_handle_t spk_codec_dev = NULL;
+static int codec_current_sample_rate = AUDIO_SAMPLE_RATE;
+
+static void codec_set_sample_rate(int rate)
+{
+    if (rate == codec_current_sample_rate) return;
+    esp_codec_dev_sample_info_t fs = {
+        .sample_rate     = rate,
+        .channel         = 2,
+        .bits_per_sample = 16,
+    };
+    esp_codec_dev_close(spk_codec_dev);
+    esp_codec_dev_open(spk_codec_dev, &fs);
+    codec_current_sample_rate = rate;
+    ESP_LOGI("MP3", "Codec reconfigured to %d Hz", rate);
+}
+
+// ── MP3 playlist ──────────────────────────────────────────────────────────────
+#define MP3_MAX_TRACKS 32
+
+static char mp3_playlist[MP3_MAX_TRACKS][256];
+static int  mp3_track_count   = 0;
+static int  mp3_current_track = 0;
+static volatile bool mp3_stop_requested = false;
+static volatile bool mp3_is_playing     = false;
+static TaskHandle_t  mp3_task_handle    = NULL;
+
+// ── UTC offset from last weather fetch (for time display) ────────────────────
+static int32_t g_utc_offset_seconds = 0;
+
+// ── Memory display label ──────────────────────────────────────────────────────
+static lv_obj_t *mem_label = NULL;
+
+static void mem_label_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (!mem_label) return;
+    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    size_t free_psram    = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    lv_label_set_text_fmt(mem_label, "INT:%uK PSRAM:%uK",
+                          (unsigned)(free_internal / 1024),
+                          (unsigned)(free_psram    / 1024));
+}
+
+// ── 1-second LVGL timer to update the clock ──────────────────────────────────
+static void clock_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+    time_t now = time(NULL);
+    if (now < 1700000000) return; // SNTP not synced yet
+    time_t local = now + g_utc_offset_seconds;
+    struct tm *tm_info = gmtime(&local);
+    if (!tm_info) return;
+    char tmp[16] = {0};
+    strftime(tmp, sizeof(tmp), "%I:%M%p", tm_info);
+    const char *ts = (tmp[0] == '0') ? tmp + 1 : tmp;
+    lv_label_set_text(GUI_Label__home__CURRENTTIMEQ, ts);
+}
+
+// ── Music player slide state ──────────────────────────────────────────────────
+static bool music_player_open  = false;
+static bool music_scroll_active = false;
+static lv_anim_t musiclabel_anim;
+static lv_timer_t *scroll_timer = NULL;
+static int32_t scroll_x = 0;
+static int32_t scroll_unit_w = 0;
+
+// SquareLine canvas 800w x 480h, center-origin positions
+// music_player: rest pos (-132, 115), hidden off bottom at y=400
+// musicbuttoncont: starts at same x as music_player (-132), shifts right when open
+#define MUSIC_PLAYER_Y_REST    115
+#define MUSIC_PLAYER_Y_HIDDEN  400
+#define MUSICBTN_X_REST        -132   // same x as music_player, sits next to weather widget
+#define MUSICBTN_X_OPEN         -68   // just to the right of music_player when open
+
+// Scroll panel width from SquareLine (424px) used for animation range
+#define ML_W  424
 
 static void scan_sd_card(void);
 static void create_ui(void);
 static esp_err_t i2s_init(void);
 static esp_err_t codec_init(void);
 static void audio_task(void *param);
+static void mp3_stop(void);
+static void music_scroll_stop(void);
 
 static esp_err_t i2s_init(void)
 {
@@ -143,28 +222,63 @@ static void scan_sd_card(void)
     esp_err_t ret = bsp_sdcard_mount();
     if (ret != ESP_OK) { ESP_LOGE(TAG, "Failed to mount SD card: %s", esp_err_to_name(ret)); return; }
     ESP_LOGI(TAG, "SD card mounted successfully at /sdcard");
+
+    // Scan root for WAV/PCM
     DIR *dir = opendir("/sdcard");
     if (!dir) { ESP_LOGE(TAG, "Failed to open /sdcard directory"); return; }
     struct dirent *entry;
-    int file_count = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             char full_path[256];
             snprintf(full_path, sizeof(full_path), "/sdcard/%s", entry->d_name);
             if (strstr(entry->d_name, ".pcm") || strstr(entry->d_name, ".PCM")) {
                 snprintf(pcm_file_path, sizeof(pcm_file_path), "%s", full_path);
-                ESP_LOGI(TAG, "Found PCM file: %s", pcm_file_path);
-                file_count++;
+                ESP_LOGI(TAG, "Found PCM: %s", pcm_file_path);
             } else if (strstr(entry->d_name, ".wav") || strstr(entry->d_name, ".WAV")) {
                 snprintf(wav_file_path, sizeof(wav_file_path), "%s", full_path);
-                ESP_LOGI(TAG, "Found WAV file: %s", wav_file_path);
-                file_count++;
+                ESP_LOGI(TAG, "Found WAV: %s", wav_file_path);
             }
         }
     }
     closedir(dir);
-    if (file_count > 0) { ESP_LOGI(TAG, "Found %d audio file(s) on SD card", file_count); }
-    else { ESP_LOGW(TAG, "No audio files found on SD card"); }
+
+    // Scan /sdcard/music/ for MP3s
+    mp3_track_count = 0;
+    DIR *mdir = opendir("/sdcard/music");
+    if (!mdir) {
+        ESP_LOGW(TAG, "No /sdcard/music folder found — no MP3s loaded");
+        return;
+    }
+    // Collect names first so we can sort them
+    char names[MP3_MAX_TRACKS][128];
+    int name_count = 0;
+    while ((entry = readdir(mdir)) != NULL && name_count < MP3_MAX_TRACKS) {
+        if (entry->d_type == DT_REG &&
+            (strstr(entry->d_name, ".mp3") || strstr(entry->d_name, ".MP3"))) {
+            snprintf(names[name_count], sizeof(names[0]), "%s", entry->d_name);
+            name_count++;
+        }
+    }
+    closedir(mdir);
+
+    // Sort alphabetically so track order matches filename order (01, 02, 03...)
+    for (int i = 0; i < name_count - 1; i++) {
+        for (int j = i + 1; j < name_count; j++) {
+            if (strcmp(names[i], names[j]) > 0) {
+                char tmp[128];
+                memcpy(tmp,       names[i], sizeof(tmp));
+                memcpy(names[i],  names[j], sizeof(names[0]));
+                memcpy(names[j],  tmp,      sizeof(names[0]));
+            }
+        }
+    }
+
+    for (int i = 0; i < name_count; i++) {
+        snprintf(mp3_playlist[i], sizeof(mp3_playlist[0]), "/sdcard/music/%s", names[i]);
+        ESP_LOGI(TAG, "MP3 [%d]: %s", i, mp3_playlist[i]);
+    }
+    mp3_track_count = name_count;
+    ESP_LOGI(TAG, "Loaded %d MP3 track(s) from /sdcard/music", mp3_track_count);
 }
 
 static void stop_callback(lv_event_t *e)      { is_playing = false; ESP_LOGI(TAG, "Audio stopped"); }
@@ -246,27 +360,28 @@ typedef struct {
 static void mp3_task(void *arg)
 {
     mp3_play_args_t *args = (mp3_play_args_t *)arg;
-    if (spk_codec_dev == NULL) { free(args); vTaskDelete(NULL); return; }
+    if (spk_codec_dev == NULL) { free(args); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
     FILE *f = fopen(args->path, "rb");
     free(args);
-    if (!f) { ESP_LOGW("MP3", "File not found"); vTaskDelete(NULL); return; }
+    if (!f) { ESP_LOGW("MP3", "File not found"); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
     HMP3Decoder decoder = MP3InitDecoder();
-    if (!decoder) { fclose(f); vTaskDelete(NULL); return; }
+    if (!decoder) { fclose(f); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
     uint8_t *read_buf = malloc(MP3_READ_BUF_SIZE);
-    short   *pcm_buf  = malloc(MP3_PCM_BUF_FRAMES * 2 * sizeof(short)); // stereo
+    short   *pcm_buf  = malloc(MP3_PCM_BUF_FRAMES * 2 * sizeof(short));
     if (!read_buf || !pcm_buf) {
         free(read_buf); free(pcm_buf);
-        MP3FreeDecoder(decoder); fclose(f); vTaskDelete(NULL); return;
+        MP3FreeDecoder(decoder); fclose(f); mp3_is_playing = false; vTaskDelete(NULL); return;
     }
 
     int bytes_in_buf = 0;
     uint8_t *read_ptr = read_buf;
+    bool sample_rate_set = false;
 
-    while (1) {
-        // Refill buffer
+    while (!mp3_stop_requested) {
+        // Refill buffer from SD
         int space = MP3_READ_BUF_SIZE - bytes_in_buf;
         if (space > 0 && read_ptr != read_buf) {
             memmove(read_buf, read_ptr, bytes_in_buf);
@@ -298,6 +413,13 @@ static void mp3_task(void *arg)
 
         MP3FrameInfo info;
         MP3GetLastFrameInfo(decoder, &info);
+
+        // On first good frame, reconfigure codec to match file's sample rate and channels
+        if (!sample_rate_set && info.samprate > 0) {
+            codec_set_sample_rate(info.samprate);
+            sample_rate_set = true;
+        }
+
         int samples = info.outputSamps; // total shorts (channels * frames)
         esp_codec_dev_write(spk_codec_dev, pcm_buf, samples * sizeof(short));
     }
@@ -306,7 +428,276 @@ static void mp3_task(void *arg)
     free(pcm_buf);
     MP3FreeDecoder(decoder);
     fclose(f);
+    mp3_is_playing = false;
+    mp3_task_handle = NULL;
     vTaskDelete(NULL);
+}
+
+// ── Parse filename: get 2-digit track number and scroll title ────────────────
+static void mp3_parse_filename(const char *path, char *tracknum, size_t tn_len,
+                                char *title, size_t title_len)
+{
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+
+    snprintf(tracknum, tn_len, "%c%c",
+             (base[0] >= '0' && base[0] <= '9') ? base[0] : '-',
+             (base[1] >= '0' && base[1] <= '9') ? base[1] : '-');
+
+    snprintf(title, title_len, "%s", base);
+    char *dot = strrchr(title, '.');
+    if (dot) *dot = '\0';
+}
+
+// ── Build looping scroll string ───────────────────────────────────────────────
+// Build scroll string with enough repeats for seamless looping.
+// We animate x from 0 to -unit_w (one title+sep width), repeat infinite.
+// Need at least 2 visible copies so there's no gap during the loop reset.
+static char *mp3_build_scroll_text(const char *title)
+{
+    const char *sep = "     "; // 5 spaces
+    size_t tlen = strlen(title);
+    size_t slen = strlen(sep);
+    // 4 repeats — first unit scrolls off, next is already on screen
+    size_t unit = tlen + slen;
+    size_t total = unit * 4 + 1;
+    char *buf = malloc(total);
+    if (!buf) return NULL;
+    snprintf(buf, total, "%s%s%s%s%s%s%s%s",
+             title, sep, title, sep, title, sep, title, sep);
+    return buf;
+}
+
+// ── Animation callbacks ───────────────────────────────────────────────────────
+static void musiclabel_anim_cb(void *obj, int32_t x)
+{
+    lv_obj_set_x((lv_obj_t *)obj, x);
+}
+
+static void anim_y_cb(void *obj, int32_t y)
+{
+    lv_obj_set_y((lv_obj_t *)obj, y);
+}
+
+static void anim_x_cb(void *obj, int32_t x)
+{
+    lv_obj_set_x((lv_obj_t *)obj, x);
+}
+
+// ── Open/close music player panel ────────────────────────────────────────────
+static void music_player_toggle(void)
+{
+    audio_play_tick();
+    music_player_open = !music_player_open;
+
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, GUI_Container__home__music_player);
+    lv_anim_set_exec_cb(&a, anim_y_cb);
+    lv_anim_set_values(&a,
+        music_player_open ? MUSIC_PLAYER_Y_HIDDEN : MUSIC_PLAYER_Y_REST,
+        music_player_open ? MUSIC_PLAYER_Y_REST   : MUSIC_PLAYER_Y_HIDDEN);
+    lv_anim_set_duration(&a, 300);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+
+    lv_anim_t b;
+    lv_anim_init(&b);
+    lv_anim_set_var(&b, GUI_Container__home__musicbuttoncont);
+    lv_anim_set_exec_cb(&b, anim_x_cb);
+    lv_anim_set_values(&b,
+        music_player_open ? MUSICBTN_X_REST : MUSICBTN_X_OPEN,
+        music_player_open ? MUSICBTN_X_OPEN : MUSICBTN_X_REST);
+    lv_anim_set_duration(&b, 300);
+    lv_anim_set_path_cb(&b, lv_anim_path_ease_out);
+    lv_anim_start(&b);
+
+    if (music_player_open) {
+        lv_image_set_src(GUI_Image__home__musicbtn,
+                         &upload_music_btn_red_410df9ce0fe84d7ea36d6e6554682ce8_png);
+    } else {
+        lv_image_set_src(GUI_Image__home__musicbtn,
+                         &upload_music_btn_ab57fd2bae02484db3c1484de8de889c_png);
+        if (mp3_is_playing) {
+            mp3_stop();
+            lv_image_set_src(GUI_Image__home__image_35,
+                             &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
+            music_scroll_stop();
+        }
+    }
+}
+
+static void music_player_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    music_player_toggle();
+}
+
+// ── Scroll timer: advances label x by 2px every 25ms (~80px/s) ───────────────
+static void scroll_tick_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (!music_scroll_active || scroll_unit_w == 0) return;
+    scroll_x -= 2;
+    if (scroll_x <= -scroll_unit_w) scroll_x += scroll_unit_w;
+    lv_obj_set_x(GUI_Label__home__musicscrolllabel, scroll_x);
+}
+
+// ── Scroll title start/stop ───────────────────────────────────────────────────
+static void music_scroll_start(const char *title)
+{
+    music_scroll_active = true;
+
+    // Build looping text
+    char *scroll_text = mp3_build_scroll_text(title);
+    if (!scroll_text) return;
+    lv_label_set_text(GUI_Label__home__musicscrolllabel, scroll_text);
+    free(scroll_text);
+
+    // Label must be LV_SIZE_CONTENT wide and CLIP long mode
+    lv_label_set_long_mode(GUI_Label__home__musicscrolllabel, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(GUI_Label__home__musicscrolllabel, LV_SIZE_CONTENT);
+
+    // Measure one unit width after layout
+    lv_obj_update_layout(GUI_Label__home__musicscrolllabel);
+    int32_t total_w = lv_obj_get_width(GUI_Label__home__musicscrolllabel);
+    scroll_unit_w = total_w / 4; // 4 repeats in scroll text
+    scroll_x = 0;
+
+    // Start timer if not already running
+    if (!scroll_timer) {
+        scroll_timer = lv_timer_create(scroll_tick_cb, 25, NULL);
+    } else {
+        lv_timer_resume(scroll_timer);
+    }
+
+    // Slide panel up into view
+    lv_anim_t slide;
+    lv_anim_init(&slide);
+    lv_anim_set_var(&slide, GUI_Panel__home__musicscrollbg);
+    lv_anim_set_exec_cb(&slide, anim_y_cb);
+    lv_anim_set_values(&slide, 255, 224);
+    lv_anim_set_duration(&slide, 300);
+    lv_anim_set_path_cb(&slide, lv_anim_path_ease_out);
+    lv_anim_start(&slide);
+}
+
+static void music_scroll_stop(void)
+{
+    if (!music_scroll_active) return;
+    music_scroll_active = false;
+
+    if (scroll_timer) lv_timer_pause(scroll_timer);
+    scroll_x = 0;
+    lv_obj_set_x(GUI_Label__home__musicscrolllabel, 0);
+
+    // Slide panel back down off screen
+    lv_anim_t slide;
+    lv_anim_init(&slide);
+    lv_anim_set_var(&slide, GUI_Panel__home__musicscrollbg);
+    lv_anim_set_exec_cb(&slide, anim_y_cb);
+    lv_anim_set_values(&slide, 224, 255);
+    lv_anim_set_duration(&slide, 250);
+    lv_anim_set_path_cb(&slide, lv_anim_path_ease_in);
+    lv_anim_start(&slide);
+}
+
+// ── Update textarea_4 (track number) ─────────────────────────────────────────
+static void music_update_display(void)
+{
+    if (mp3_track_count == 0) {
+        lv_textarea_set_text(GUI_Textarea__home__textarea_4, "--");
+        return;
+    }
+    char tracknum[4], title[128];
+    mp3_parse_filename(mp3_playlist[mp3_current_track], tracknum, sizeof(tracknum),
+                       title, sizeof(title));
+    lv_textarea_set_text(GUI_Textarea__home__textarea_4, tracknum);
+}
+
+// ── Stop any playing MP3 ──────────────────────────────────────────────────────
+static void mp3_stop(void)
+{
+    if (mp3_is_playing) {
+        mp3_stop_requested = true;
+        for (int i = 0; i < 50 && mp3_is_playing; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        mp3_stop_requested = false;
+    }
+}
+
+// ── Start playing current track ───────────────────────────────────────────────
+static void mp3_play_current(void)
+{
+    if (mp3_track_count == 0 || spk_codec_dev == NULL) return;
+    mp3_stop_requested = false;
+    mp3_is_playing = true;
+    mp3_play_args_t *args = malloc(sizeof(mp3_play_args_t));
+    if (!args) { mp3_is_playing = false; return; }
+    strncpy(args->path, mp3_playlist[mp3_current_track], sizeof(args->path) - 1);
+    args->path[sizeof(args->path) - 1] = '\0';
+    xTaskCreate(mp3_task, "mp3_play", 8192, args, 5, &mp3_task_handle);
+    ESP_LOGI(TAG, "Playing track %d: %s", mp3_current_track, args->path);
+}
+
+// ── Music player button callbacks ─────────────────────────────────────────────
+static void music_buttonplay_cb(lv_event_t *e)
+{
+    (void)e;
+    if (mp3_track_count == 0) return;
+    audio_play_tick();
+    if (mp3_is_playing) {
+        mp3_stop();
+        lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
+        music_scroll_stop();
+    } else {
+        char tracknum[4], title[128];
+        mp3_parse_filename(mp3_playlist[mp3_current_track], tracknum, sizeof(tracknum),
+                           title, sizeof(title));
+        mp3_play_current();
+        lv_image_set_src(GUI_Image__home__image_35, &upload_stopbutton_a37c756148194bc181010db779e72ea4_png);
+        music_scroll_start(title);
+    }
+}
+
+static void music_buttonup_cb(lv_event_t *e)
+{
+    (void)e;
+    if (mp3_track_count == 0) return;
+    audio_play_tick();
+    bool was_playing = mp3_is_playing;
+    mp3_stop();
+    mp3_current_track = (mp3_current_track - 1 + mp3_track_count) % mp3_track_count;
+    music_update_display();
+    if (was_playing) {
+        char tracknum[4], title[128];
+        mp3_parse_filename(mp3_playlist[mp3_current_track], tracknum, sizeof(tracknum),
+                           title, sizeof(title));
+        mp3_play_current();
+        music_scroll_stop();
+        music_scroll_start(title);
+    }
+}
+
+static void music_buttondown_cb(lv_event_t *e)
+{
+    (void)e;
+    if (mp3_track_count == 0) return;
+    audio_play_tick();
+    bool was_playing = mp3_is_playing;
+    mp3_stop();
+    mp3_current_track = (mp3_current_track + 1) % mp3_track_count;
+    music_update_display();
+    if (was_playing) {
+        char tracknum[4], title[128];
+        mp3_parse_filename(mp3_playlist[mp3_current_track], tracknum, sizeof(tracknum),
+                           title, sizeof(title));
+        mp3_play_current();
+        music_scroll_stop();
+        music_scroll_start(title);
+    }
 }
 
 void audio_play_mp3(const char *path)
@@ -317,6 +708,21 @@ void audio_play_mp3(const char *path)
     strncpy(args->path, path, sizeof(args->path) - 1);
     args->path[sizeof(args->path)-1] = '\0';
     xTaskCreate(mp3_task, "mp3_play", 8192, args, 5, NULL);
+}
+
+// ── Periodic timer: detect when MP3 finishes naturally ───────────────────────
+static bool mp3_was_playing = false;
+
+static void music_watchdog_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (mp3_was_playing && !mp3_is_playing) {
+        lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
+        if (music_scroll_active) {
+            music_scroll_stop();
+        }
+    }
+    mp3_was_playing = mp3_is_playing;
 }
 
 static void play_pcm_callback(lv_event_t *e)
@@ -337,21 +743,51 @@ static void play_wav_callback(lv_event_t *e)
 
 static void create_ui(void)
 {
-    // Initialize SquareLine UI
-    // Note: GUI_init() must be called AFTER bsp_display_start_with_config()
-    // and INSIDE bsp_display_lock() to avoid timing issues
     ESP_LOGI(TAG, "Initializing SquareLine UI");
     GUI_init();
 
-    // Set background image on home screen
     lv_obj_set_style_bg_image_src(GUI_Screen__home, &upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
-
-    // Set clean default values on all weather widgets — prevents blank/junk display
     ui_set_default_weather();
-
-
-    // Wire up settings button and settings screen
     settings_ui_init();
+
+    lv_obj_add_event_cb(GUI_Button__home__buttonplay,      music_buttonplay_cb,  LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__home__buttonup,        music_buttonup_cb,    LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__home__buttondown,      music_buttondown_cb,  LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(GUI_Button__home__musicbuttongrey, music_player_btn_cb,  LV_EVENT_CLICKED, NULL);
+
+    lv_obj_set_y(GUI_Container__home__music_player, MUSIC_PLAYER_Y_HIDDEN);
+    lv_obj_set_x(GUI_Container__home__musicbuttoncont, MUSICBTN_X_REST);
+    lv_obj_set_y(GUI_Panel__home__musicscrollbg, 255); // parked off bottom
+
+    lv_obj_set_style_bg_color(GUI_Panel__home__musicscrollbg, lv_color_hex(0x222222), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(GUI_Panel__home__musicscrollbg, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(GUI_Label__home__musicscrolllabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_label_set_long_mode(GUI_Label__home__musicscrolllabel, LV_LABEL_LONG_CLIP);
+    // Panel: 2px taller, original width (424px)
+    lv_obj_set_size(GUI_Panel__home__musicscrollbg, 424, 26);
+    // Label: 4px left inset, 1px down
+    lv_obj_set_pos(GUI_Label__home__musicscrolllabel, 4, 1);
+    lv_obj_set_width(GUI_Label__home__musicscrolllabel, 416);
+
+    // Rename "Precipitation" label to "Chance Rain"
+    lv_label_set_text(GUI_Label__home__Precipitation, "Chance Rain");
+
+    lv_obj_set_size(GUI_Panel__home__panel_3, 60, 220);
+
+    // Memory label — hidden for now, re-enable by removing LV_OBJ_FLAG_HIDDEN
+    mem_label = lv_label_create(GUI_Screen__home);
+    lv_obj_set_style_text_font(mem_label, &lv_font_montserrat_12, LV_PART_MAIN);
+    lv_obj_set_style_text_color(mem_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(mem_label, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_align(mem_label, LV_ALIGN_BOTTOM_LEFT);
+    lv_obj_set_pos(mem_label, 2, -18);
+    lv_label_set_text(mem_label, "INT:--- PSRAM:---");
+    lv_obj_add_flag(mem_label, LV_OBJ_FLAG_HIDDEN); // hidden — remove to show
+    lv_timer_create(mem_label_cb, 1000, NULL);
+
+    lv_timer_create(music_watchdog_cb, 500, NULL);
+    lv_timer_create(clock_timer_cb, 1000, NULL);
+    music_update_display();
 }
 
 void app_main(void)
@@ -370,7 +806,6 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
     ESP_ERROR_CHECK(nvs_storage_init());
 
-    // Required for esp_hosted / esp_wifi_remote
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
@@ -380,7 +815,6 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "WiFi initialized in STA mode");
 
-    // Init WiFi manager event handlers and connect with saved credentials
     wifi_manager_init();
     wifi_manager_connect_saved();
 
@@ -410,16 +844,12 @@ void app_main(void)
     ret = codec_init();
     if (ret != ESP_OK) { ESP_LOGE(TAG, "Codec init failed"); }
 
-    // Initialize weather system
     ESP_LOGI(TAG, "Initializing weather system");
-
     ret = weather_task_start();
     if (ret != ESP_OK) { ESP_LOGW(TAG, "Weather task start failed: %s", esp_err_to_name(ret)); }
 
-    // Load saved zip code and kick off weather fetch
     char saved_zip[16] = "";
     if (nvs_load_zipcode(saved_zip, sizeof(saved_zip)) != ESP_OK || strlen(saved_zip) == 0) {
-        // No zip saved — write the default so it persists
         strncpy(saved_zip, "88002", sizeof(saved_zip) - 1);
         nvs_store_zipcode(saved_zip);
         ESP_LOGI(TAG, "No zip code saved — using default: %s", saved_zip);
@@ -430,85 +860,56 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Initialization complete");
 
-    // Main loop — poll weather data and update display
     weather_data_t api_data = {0};
     uint32_t last_displayed_update = 0;
 
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(5000)); // check every 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(1000));
 
-        if (weather_get_data(&api_data) == ESP_OK &&
-            api_data.last_update != last_displayed_update) {
+        if (weather_get_data(&api_data) != ESP_OK) continue;
+        if (api_data.last_update == last_displayed_update) continue;
+        last_displayed_update = api_data.last_update;
 
-            last_displayed_update = api_data.last_update;
+        weather_display_t disp = {0};
+        disp.current_temp_f    = api_data.current_temp;
+        disp.feels_like_f      = api_data.current_apparent_temp;
+        disp.current_humidity  = (int)api_data.current_humidity;
+        disp.current_precip_prob = api_data.current_precip_prob;
+        disp.current_wmo       = api_data.current_weather_code;
+        disp.is_night          = (api_data.current_is_day == 0);
+        disp.wifi_connected    = wifi_manager_is_connected();
 
-            // Convert weather_data_t → weather_display_t and update UI
-            weather_display_t disp = {0};
+        // Wind string e.g. "9SE"
+        const char *compass[] = {"N","NE","E","SE","S","SW","W","NW"};
+        const char *dir = compass[((api_data.current_wind_direction + 22) % 360) / 45];
+        snprintf(disp.current_wind_str, sizeof(disp.current_wind_str),
+                 "%.0f%s", api_data.current_wind_speed, dir);
 
-            disp.current_temp_f   = api_data.current_temp;
-            disp.feels_like_f     = api_data.current_apparent_temp;
-            disp.current_humidity = (int)api_data.current_humidity;
-            disp.current_wind_mph  = api_data.current_wind_speed;
-            disp.current_precip_in = api_data.current_precip;
-            // Wind string: speed + compass direction, no space e.g. "9NW"
-            const char *compass[] = {"N","NE","E","SE","S","SW","W","NW"};
-            const char *dir = compass[((api_data.current_wind_direction + 22) % 360) / 45];
-            snprintf(disp.current_wind_str, sizeof(disp.current_wind_str),
-                     "%.0f%s", api_data.current_wind_speed, dir);
-            disp.current_wmo      = api_data.current_weather_code;
-            disp.is_night         = (api_data.current_is_day == 0);
-            disp.wifi_connected   = wifi_manager_is_connected();
+        strncpy(disp.city,  api_data.city,  sizeof(disp.city)  - 1);
+        strncpy(disp.state, api_data.state, sizeof(disp.state) - 1);
 
-            strncpy(disp.city,  api_data.city,  sizeof(disp.city) - 1);
-            strncpy(disp.state, api_data.state, sizeof(disp.state) - 1);
+        // Store UTC offset for the 1-second clock timer
+        g_utc_offset_seconds = api_data.utc_offset_seconds;
 
-            // Time from SNTP — apply UTC offset from API
-            time_t now = time(NULL);
-            ESP_LOGI(TAG, "SNTP time: %lu, utc_offset: %ld", (unsigned long)now, (long)api_data.utc_offset_seconds);
-            if (now > 1700000000) { // valid if past Nov 2023
-                time_t local = now + api_data.utc_offset_seconds;
-                struct tm *tm_info = gmtime(&local);
-                if (tm_info) {
-                    char tmp[12] = {0};
-                    strftime(tmp, sizeof(tmp), "%I:%M%p", tm_info);
-                    // Strip leading zero: "04:10PM" -> "4:10PM"
-                    const char *ts = (tmp[0] == '0') ? tmp + 1 : tmp;
-                    size_t ts_len = strlen(ts);
-                    size_t tc_len = ts_len < sizeof(disp.time_str) - 1 ? ts_len : sizeof(disp.time_str) - 1;
-                    memcpy(disp.time_str, ts, tc_len);
-                    disp.time_str[tc_len] = '\0';
-                }
-            }
-
-            // Hourly
-            for (int i = 0; i < 4; i++) {
-                disp.hourly_temp_f[i] = api_data.hourly.hours[i].temperature;
-                disp.hourly_wmo[i]    = api_data.hourly.hours[i].weather_code;
-                strncpy(disp.hourly_time[i], api_data.hourly.times_12h[i],
-                        sizeof(disp.hourly_time[i]) - 1);
-            }
-
-            // Daily — use weather description, not date string
-            for (int i = 0; i < 3; i++) {
-                disp.daily_high_f[i] = api_data.daily[i].temp_high;
-                disp.daily_low_f[i]  = api_data.daily[i].temp_low;
-                disp.daily_wmo[i]    = api_data.daily[i].weather_code;
-                strncpy(disp.daily_day[i], api_data.daily[i].day_name,
-                        sizeof(disp.daily_day[i]) - 1);
-                strncpy(disp.daily_status[i], weather_description(api_data.daily[i].weather_code),
-                        sizeof(disp.daily_status[i]) - 1);
-            }
-
-            bsp_display_lock(100);
-            weather_display_update(&disp);
-            bsp_display_unlock();
-
-            ESP_LOGI(TAG, "UI updated: %.1f°F %s", disp.current_temp_f, disp.city);
+        // Hourly
+        for (int i = 0; i < 4; i++) {
+            disp.hourly_temp_f[i] = api_data.hourly.hours[i].temperature;
+            disp.hourly_wmo[i]    = api_data.hourly.hours[i].weather_code;
+            strncpy(disp.hourly_time[i], api_data.hourly.times_12h[i],
+                    sizeof(disp.hourly_time[i]) - 1);
         }
 
-        // Update network status icon every loop
-        bsp_display_lock(100);
-        weather_display_update_network(wifi_manager_is_connected());
+        // Daily
+        for (int i = 0; i < 3; i++) {
+            disp.daily_high_f[i] = api_data.daily[i].temp_high;
+            disp.daily_low_f[i]  = api_data.daily[i].temp_low;
+            disp.daily_wmo[i]    = api_data.daily[i].weather_code;
+            strncpy(disp.daily_day[i], api_data.daily[i].day_name,
+                    sizeof(disp.daily_day[i]) - 1);
+        }
+
+        bsp_display_lock(-1);
+        weather_display_update(&disp);
         bsp_display_unlock();
     }
 }

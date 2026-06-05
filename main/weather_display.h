@@ -29,7 +29,7 @@ typedef struct {
     float   current_temp_f;        // degrees Fahrenheit
     float   feels_like_f;
     int     current_humidity;      // 0-100 %
-    float   current_precip_in;     // precipitation in inches
+    int     current_precip_prob;   // chance of rain 0-100%
     float   current_wind_mph;
     char    current_wind_str[10];  // e.g. "9NW"
     int     current_wmo;           // WMO weather code

@@ -236,9 +236,25 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
     // Hourly forecast (next 5 hours)
     cJSON *hourly = cJSON_GetObjectItem(root, "hourly");
     if (hourly) {
-        cJSON *hourly_times = cJSON_GetObjectItem(hourly, "time");
-        cJSON *hourly_temps = cJSON_GetObjectItem(hourly, "temperature_2m");
-        cJSON *hourly_codes = cJSON_GetObjectItem(hourly, "weather_code");
+        cJSON *hourly_times  = cJSON_GetObjectItem(hourly, "time");
+        cJSON *hourly_temps  = cJSON_GetObjectItem(hourly, "temperature_2m");
+        cJSON *hourly_codes  = cJSON_GetObjectItem(hourly, "weather_code");
+        cJSON *hourly_precip_prob = cJSON_GetObjectItem(hourly, "precipitation_probability");
+
+        // Find the next hour's precipitation probability
+        if (hourly_times && hourly_precip_prob) {
+            time_t now = time(NULL);
+            int total = cJSON_GetArraySize(hourly_times);
+            for (int i = 0; i < total; i++) {
+                cJSON *t = cJSON_GetArrayItem(hourly_times, i);
+                cJSON *p = cJSON_GetArrayItem(hourly_precip_prob, i);
+                if (t && p && (time_t)t->valueint >= now) {
+                    weather->current_precip_prob = p->valueint;
+                    ESP_LOGI(TAG, "Precip prob for next hour: %d%%", weather->current_precip_prob);
+                    break;
+                }
+            }
+        }
 
         if (hourly_times && hourly_temps && hourly_codes) {
             int num_hours = cJSON_GetArraySize(hourly_times);
@@ -283,19 +299,28 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
     // Daily forecast (next 3 days)
     cJSON *daily = cJSON_GetObjectItem(root, "daily");
     if (daily) {
-        cJSON *daily_times = cJSON_GetObjectItem(daily, "time");
-        cJSON *daily_highs = cJSON_GetObjectItem(daily, "temperature_2m_max");
-        cJSON *daily_lows = cJSON_GetObjectItem(daily, "temperature_2m_min");
-        cJSON *daily_codes = cJSON_GetObjectItem(daily, "weather_code");
+        cJSON *daily_times  = cJSON_GetObjectItem(daily, "time");
+        cJSON *daily_highs  = cJSON_GetObjectItem(daily, "temperature_2m_max");
+        cJSON *daily_lows   = cJSON_GetObjectItem(daily, "temperature_2m_min");
+        cJSON *daily_codes  = cJSON_GetObjectItem(daily, "weather_code");
+        cJSON *daily_precip = cJSON_GetObjectItem(daily, "precipitation_sum");
 
         if (daily_times && daily_highs && daily_lows && daily_codes) {
             int num_days = cJSON_GetArraySize(daily_times);
             if (num_days > 3) num_days = 3;
 
+            // Use today's daily precipitation sum for the display (index 0)
+            if (daily_precip) {
+                cJSON *today_precip = cJSON_GetArrayItem(daily_precip, 0);
+                if (today_precip) {
+                    weather->current_precip = today_precip->valuedouble;
+                }
+            }
+
             for (int i = 0; i < num_days; i++) {
                 cJSON *time_item = cJSON_GetArrayItem(daily_times, i);
                 cJSON *high_item = cJSON_GetArrayItem(daily_highs, i);
-                cJSON *low_item = cJSON_GetArrayItem(daily_lows, i);
+                cJSON *low_item  = cJSON_GetArrayItem(daily_lows, i);
                 cJSON *code_item = cJSON_GetArrayItem(daily_codes, i);
 
                 if (time_item && high_item && low_item && code_item) {
@@ -391,8 +416,8 @@ esp_err_t weather_fetch_current(const location_t *location, weather_data_t *weat
     snprintf(url, sizeof(url),
              "https://api.open-meteo.com/v1/forecast?"
              "latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,rain,showers,snowfall,wind_direction_10m,is_day"
-             "&hourly=temperature_2m,weather_code"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,is_day"
+             "&hourly=temperature_2m,weather_code,precipitation_probability"
              "&daily=weather_code,temperature_2m_max,temperature_2m_min"
              "&timeformat=unixtime"
              "&temperature_unit=fahrenheit"
