@@ -64,4 +64,12 @@ esp_err_t nvs_load_weather(weather_data_t *weather);
  */
 esp_err_t nvs_clear_weather(void);
 
+// ── WiFi credentials ──────────────────────────────────────────────────────────
+esp_err_t nvs_store_wifi(const char *ssid, const char *password);
+esp_err_t nvs_load_wifi(char *ssid, size_t ssid_len, char *password, size_t pass_len);
+
+// ── Zip code ──────────────────────────────────────────────────────────────────
+esp_err_t nvs_store_zipcode(const char *zip);
+esp_err_t nvs_load_zipcode(char *zip, size_t len);
+
 #endif // NVS_STORAGE_H

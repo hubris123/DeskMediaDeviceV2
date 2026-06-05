@@ -361,6 +361,7 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_ERROR_CHECK(nvs_storage_init());
 
     // Required for esp_hosted / esp_wifi_remote
     ESP_ERROR_CHECK(esp_netif_init());

@@ -5,6 +5,7 @@
 #include "audio.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "nvs_storage.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -34,7 +35,22 @@ static void save_btn_cb(lv_event_t *e)
 {
     (void)e;
     ESP_LOGI(TAG, "Settings saved");
-    audio_play_success();  // plays SUCCESS.WAV
+
+    // Save WiFi credentials to NVS
+    const char *ssid = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_2);
+    const char *pass = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_3);
+    if (ssid && strlen(ssid) > 0) {
+        nvs_store_wifi(ssid, pass ? pass : "");
+    }
+
+    // Save zip code to NVS
+    const char *zip = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_1);
+    if (zip && strlen(zip) > 0) {
+        nvs_store_zipcode(zip);
+        strncpy(s_zipcode, zip, sizeof(s_zipcode) - 1);
+    }
+
+    audio_play_success();
     lv_screen_load(GUI_Screen__home);
 }
 
@@ -128,14 +144,21 @@ static void mute_checkbox_cb(lv_event_t *e)
 
 static TimerHandle_t s_reset_timer = NULL;
 
+static void factory_reset_task(void *arg)
+{
+    (void)arg;
+    ESP_LOGW(TAG, "Factory reset triggered!");
+    audio_play_success();
+    vTaskDelay(pdMS_TO_TICKS(2500)); // let sound finish
+    // Erase NVS partition by name then restart
+    nvs_flash_erase_partition("nvs");
+    esp_restart();
+}
+
 static void factory_reset_timer_cb(TimerHandle_t xTimer)
 {
     (void)xTimer;
-    ESP_LOGW(TAG, "Factory reset triggered!");
-    audio_play_success();
-    vTaskDelay(pdMS_TO_TICKS(2000)); // let sound finish
-    nvs_flash_erase();
-    esp_restart();
+    xTaskCreate(factory_reset_task, "factory_reset", 4096, NULL, 5, NULL);
 }
 
 static void mute_long_press_cb(lv_event_t *e)
@@ -362,6 +385,26 @@ void settings_ui_init(void)
     // Network selector — init and register SSID-return callback
     network_selector_register_cb(on_network_selected);
     network_selector_ui_init();
+
+    // Load saved settings from NVS and populate fields
+    char saved_ssid[33] = "";
+    char saved_pass[65] = "";
+    if (nvs_load_wifi(saved_ssid, sizeof(saved_ssid), saved_pass, sizeof(saved_pass)) == ESP_OK) {
+        if (strlen(saved_ssid) > 0)
+            lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_2, saved_ssid);
+        if (strlen(saved_pass) > 0) {
+            memcpy(s_password, saved_pass, sizeof(s_password) - 1);
+            s_password[sizeof(s_password) - 1] = '\0';
+            lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_3, saved_pass);
+        }
+    }
+
+    char saved_zip[16] = "";
+    if (nvs_load_zipcode(saved_zip, sizeof(saved_zip)) == ESP_OK && strlen(saved_zip) > 0) {
+        memcpy(s_zipcode, saved_zip, sizeof(s_zipcode) - 1);
+        s_zipcode[sizeof(s_zipcode) - 1] = '\0';
+        lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_1, saved_zip);
+    }
 
     ESP_LOGI(TAG, "Settings UI initialized");
 }

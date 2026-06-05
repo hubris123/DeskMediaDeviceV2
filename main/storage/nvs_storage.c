@@ -221,3 +221,48 @@ esp_err_t nvs_clear_weather(void)
     ESP_LOGI(TAG, "Weather data cleared");
     return ESP_OK;
 }
+
+// ── WiFi credentials ──────────────────────────────────────────────────────────
+
+esp_err_t nvs_store_wifi(const char *ssid, const char *password)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = ESP_OK;
+    ret |= nvs_set_str(nvs_h, "wifi_ssid", ssid ? ssid : "");
+    ret |= nvs_set_str(nvs_h, "wifi_pass", password ? password : "");
+    ret |= nvs_commit(nvs_h);
+    if (ret == ESP_OK) ESP_LOGI(TAG, "WiFi credentials saved: %s", ssid);
+    else ESP_LOGE(TAG, "Failed to save WiFi credentials");
+    return ret;
+}
+
+esp_err_t nvs_load_wifi(char *ssid, size_t ssid_len, char *password, size_t pass_len)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = ESP_OK;
+    ret |= nvs_get_str(nvs_h, "wifi_ssid", ssid, &ssid_len);
+    ret |= nvs_get_str(nvs_h, "wifi_pass", password, &pass_len);
+    if (ret == ESP_OK) ESP_LOGI(TAG, "WiFi credentials loaded: %s", ssid);
+    else ESP_LOGW(TAG, "No saved WiFi credentials");
+    return ret;
+}
+
+// ── Zip code ──────────────────────────────────────────────────────────────────
+
+esp_err_t nvs_store_zipcode(const char *zip)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = nvs_set_str(nvs_h, "zipcode", zip ? zip : "");
+    ret |= nvs_commit(nvs_h);
+    if (ret == ESP_OK) ESP_LOGI(TAG, "Zip code saved: %s", zip);
+    return ret;
+}
+
+esp_err_t nvs_load_zipcode(char *zip, size_t len)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = nvs_get_str(nvs_h, "zipcode", zip, &len);
+    if (ret == ESP_OK) ESP_LOGI(TAG, "Zip code loaded: %s", zip);
+    else ESP_LOGW(TAG, "No saved zip code");
+    return ret;
+}
