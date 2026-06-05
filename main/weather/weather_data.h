@@ -57,9 +57,11 @@ typedef struct {
     float current_apparent_temp;
     float current_humidity;
     float current_wind_speed;
+    int   current_wind_direction; // degrees 0-360
     int current_weather_code;
     int current_precip_prob;
     int current_is_day;          // 1 = day, 0 = night (from API)
+    float current_precip;        // current precipitation in inches (rain+showers+snowfall)
     uint32_t current_time;
 
     // Location info
@@ -74,6 +76,9 @@ typedef struct {
 
     // Daily forecast (next 3 days)
     daily_forecast_t daily[3];
+
+    // Timezone
+    int32_t utc_offset_seconds;  // From Open-Meteo timezone=auto
 
     // Metadata
     uint32_t last_update;    // Unix timestamp when data was fetched

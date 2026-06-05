@@ -94,6 +94,7 @@ void ui_set_default_weather(void)
     lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,   "--");
     lv_label_set_text(GUI_Label__home__LOCATIONQ,        "Las Cruces, NM");
     lv_label_set_text(GUI_Label__home__CURRENTTIMEQ,     "--:--");
+    lv_label_set_text(GUI_Label__home__PRECIPITATIONQ,   "0.00 IN");
 
     // Hourly forecast
     lv_obj_t *time_labels[] = {
@@ -117,12 +118,10 @@ void ui_set_default_weather(void)
     lv_obj_t *day_labels[]  = { GUI_Label__home__DAYLY1FORCASTDAYQ,      GUI_Label__home__DAYLY2FORCASTDAYQ,      GUI_Label__home__DAYLY3FORCASTDAYQ      };
     lv_obj_t *high_labels[] = { GUI_Label__home__DAYLY1FORCASTTEMPHIGHQ, GUI_Label__home__DAYLY2FORCASTTEMPHIGHQ, GUI_Label__home__DAYLY3FORCASTTEMPHIGHQ };
     lv_obj_t *low_labels[]  = { GUI_Label__home__DAYLY1FORCASTTEMPLOWQ,  GUI_Label__home__DAYLY2FORCASTTEMPLOWQ,  GUI_Label__home__DAYLY3FORCASTTEMPLOWQ  };
-    lv_obj_t *stat_labels[] = { GUI_Label__home__DAYLY1FORCASTSTATUSQ,   GUI_Label__home__DAYLY2FORCASTSTATUSQ,   GUI_Label__home__DAYLY3FORCASTSTATUSQ   };
     for (int i = 0; i < 3; i++) {
         lv_label_set_text(day_labels[i],  "---");
         lv_label_set_text(high_labels[i], "--°");
         lv_label_set_text(low_labels[i],  "--°");
-        lv_label_set_text(stat_labels[i], "--");
     }
 
     // Network status — disconnected by default
@@ -257,26 +256,12 @@ esp_err_t ui_update_daily_forecast(const weather_data_t *weather)
         GUI_Label__home__DAYLY3FORCASTTEMPLOWQ,
     };
 
-    lv_obj_t *status_labels[] = {
-        GUI_Label__home__DAYLY1FORCASTSTATUSQ,
-        GUI_Label__home__DAYLY2FORCASTSTATUSQ,
-        GUI_Label__home__DAYLY3FORCASTSTATUSQ,
-    };
-
     for (int i = 0; i < 3; i++) {
-        // Day name
         lv_label_set_text(day_labels[i], weather->daily[i].day_name);
-
-        // High/Low temps
         format_temperature(weather->daily[i].temp_high, buffer, sizeof(buffer));
         lv_label_set_text(high_labels[i], buffer);
-
         format_temperature(weather->daily[i].temp_low, buffer, sizeof(buffer));
         lv_label_set_text(low_labels[i], buffer);
-
-        // Status
-        const char *desc = wmo_get_description(weather->daily[i].weather_code);
-        lv_label_set_text(status_labels[i], desc);
     }
 
     ESP_LOGI(TAG, "Updated daily forecast (3 days)");

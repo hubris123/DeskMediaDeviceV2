@@ -33,8 +33,8 @@ void GUI_initScreen__home() {
   lv_obj_remove_flag(GUI_Container__home__main_display_cont,
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__main_display_cont, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Container__home__main_display_cont, -2, -161);
-  lv_obj_set_size(GUI_Container__home__main_display_cont, 220, 143);
+  lv_obj_set_pos(GUI_Container__home__main_display_cont, 1, -155);
+  lv_obj_set_size(GUI_Container__home__main_display_cont, 218, 161);
 
   GUI_Label__home__CURRENTTIMEQ =
       lv_label_create(GUI_Container__home__main_display_cont);
@@ -48,7 +48,7 @@ void GUI_initScreen__home() {
       lv_label_create(GUI_Container__home__main_display_cont);
   lv_label_set_long_mode(GUI_Label__home__LOCATIONQ, LV_LABEL_LONG_WRAP);
   lv_obj_set_align(GUI_Label__home__LOCATIONQ, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Label__home__LOCATIONQ, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_size(GUI_Label__home__LOCATIONQ, 218, 26);
 
   GUI_Label__home__CURRENTTEMPQ =
       lv_label_create(GUI_Container__home__main_display_cont);
@@ -64,8 +64,8 @@ void GUI_initScreen__home() {
                      LV_OBJ_FLAG_CLICKABLE);
   lv_obj_remove_flag(GUI_Container__home__current_status_cont,
                      LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_pos(GUI_Container__home__current_status_cont, 32, 136);
-  lv_obj_set_size(GUI_Container__home__current_status_cont, 173, 69);
+  lv_obj_set_pos(GUI_Container__home__current_status_cont, 16, 151);
+  lv_obj_set_size(GUI_Container__home__current_status_cont, 196, 84);
 
   GUI_Image__home__60X60ICONQ =
       lv_image_create(GUI_Container__home__current_status_cont);
@@ -78,8 +78,7 @@ void GUI_initScreen__home() {
       lv_label_create(GUI_Container__home__current_status_cont);
   lv_label_set_long_mode(GUI_Label__home__CURRENTSTATUSQ, LV_LABEL_LONG_WRAP);
   lv_obj_set_align(GUI_Label__home__CURRENTSTATUSQ, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Label__home__CURRENTSTATUSQ, LV_SIZE_CONTENT,
-                  LV_SIZE_CONTENT);
+  lv_obj_set_size(GUI_Label__home__CURRENTSTATUSQ, 129, 52);
 
   GUI_Container__home__details_cont =
       lv_obj_create(GUI_Panel__home__weather_panel);
@@ -87,7 +86,7 @@ void GUI_initScreen__home() {
   lv_obj_remove_flag(GUI_Container__home__details_cont, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_remove_flag(GUI_Container__home__details_cont, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__details_cont, LV_ALIGN_TOP_RIGHT);
-  lv_obj_set_pos(GUI_Container__home__details_cont, -11, 188);
+  lv_obj_set_pos(GUI_Container__home__details_cont, -11, 214);
   lv_obj_set_size(GUI_Container__home__details_cont, 211, 83);
 
   GUI_Container__home__details_feels_like_cont =
@@ -197,8 +196,7 @@ void GUI_initScreen__home() {
   lv_label_set_long_mode(GUI_Label__home__details_wind_speed_lbl,
                          LV_LABEL_LONG_WRAP);
   lv_obj_set_align(GUI_Label__home__details_wind_speed_lbl, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Label__home__details_wind_speed_lbl, LV_SIZE_CONTENT,
-                  LV_SIZE_CONTENT);
+  lv_obj_set_size(GUI_Label__home__details_wind_speed_lbl, 70, 27);
 
   GUI_Container__home__container_14 =
       lv_obj_create(GUI_Panel__home__weather_panel);
@@ -206,21 +204,23 @@ void GUI_initScreen__home() {
   lv_obj_remove_flag(GUI_Container__home__container_14, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_remove_flag(GUI_Container__home__container_14, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__container_14, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Container__home__container_14, -1, 33);
+  lv_obj_set_pos(GUI_Container__home__container_14, -1, 57);
   lv_obj_set_size(GUI_Container__home__container_14, 204, 24);
 
-  GUI_Label__home__label_15 =
+  GUI_Label__home__Precipitation =
       lv_label_create(GUI_Container__home__container_14);
-  lv_label_set_long_mode(GUI_Label__home__label_15, LV_LABEL_LONG_WRAP);
-  lv_obj_set_align(GUI_Label__home__label_15, LV_ALIGN_CENTER);
-  lv_obj_set_size(GUI_Label__home__label_15, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_label_set_long_mode(GUI_Label__home__Precipitation, LV_LABEL_LONG_WRAP);
+  lv_obj_set_align(GUI_Label__home__Precipitation, LV_ALIGN_CENTER);
+  lv_obj_set_size(GUI_Label__home__Precipitation, LV_SIZE_CONTENT,
+                  LV_SIZE_CONTENT);
 
-  GUI_Label__home__label_16 =
+  GUI_Label__home__PRECIPITATIONQ =
       lv_label_create(GUI_Container__home__container_14);
-  lv_label_set_long_mode(GUI_Label__home__label_16, LV_LABEL_LONG_WRAP);
-  lv_obj_set_align(GUI_Label__home__label_16, LV_ALIGN_CENTER);
-  lv_obj_set_x(GUI_Label__home__label_16, 41);
-  lv_obj_set_size(GUI_Label__home__label_16, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_label_set_long_mode(GUI_Label__home__PRECIPITATIONQ, LV_LABEL_LONG_WRAP);
+  lv_obj_set_align(GUI_Label__home__PRECIPITATIONQ, LV_ALIGN_CENTER);
+  lv_obj_set_x(GUI_Label__home__PRECIPITATIONQ, 41);
+  lv_obj_set_size(GUI_Label__home__PRECIPITATIONQ, LV_SIZE_CONTENT,
+                  LV_SIZE_CONTENT);
 
   GUI_Container__home__hourly_forecast_cont =
       lv_obj_create(GUI_Panel__home__weather_panel);
@@ -230,7 +230,7 @@ void GUI_initScreen__home() {
   lv_obj_remove_flag(GUI_Container__home__hourly_forecast_cont,
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__hourly_forecast_cont, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Container__home__hourly_forecast_cont, -2, 90);
+  lv_obj_set_y(GUI_Container__home__hourly_forecast_cont, 117);
   lv_obj_set_size(GUI_Container__home__hourly_forecast_cont, 214, 89);
 
   GUI_Container__home__hourly_forecast_items_cont =
@@ -398,8 +398,8 @@ void GUI_initScreen__home() {
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_align(GUI_Container__home__daily_forecast_cont,
                    LV_ALIGN_BOTTOM_LEFT);
-  lv_obj_set_pos(GUI_Container__home__daily_forecast_cont, -2, -3);
-  lv_obj_set_size(GUI_Container__home__daily_forecast_cont, 229, 109);
+  lv_obj_set_y(GUI_Container__home__daily_forecast_cont, 16);
+  lv_obj_set_size(GUI_Container__home__daily_forecast_cont, 229, 108);
 
   GUI_Container__home__daily_forecast_items_cont =
       lv_obj_create(GUI_Container__home__daily_forecast_cont);
@@ -422,7 +422,7 @@ void GUI_initScreen__home() {
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_flex_grow(GUI_Container__home__DAYLY1FORCASTCONT, 1);
   lv_obj_set_align(GUI_Container__home__DAYLY1FORCASTCONT, LV_ALIGN_CENTER);
-  lv_obj_set_height(GUI_Container__home__DAYLY1FORCASTCONT, lv_pct(100));
+  lv_obj_set_height(GUI_Container__home__DAYLY1FORCASTCONT, lv_pct(70));
 
   GUI_Label__home__DAYLY1FORCASTDAYQ =
       lv_label_create(GUI_Container__home__DAYLY1FORCASTCONT);
@@ -448,15 +448,6 @@ void GUI_initScreen__home() {
   lv_obj_set_size(GUI_Label__home__DAYLY1FORCASTTEMPLOWQ, LV_SIZE_CONTENT,
                   LV_SIZE_CONTENT);
 
-  GUI_Label__home__DAYLY1FORCASTSTATUSQ =
-      lv_label_create(GUI_Container__home__DAYLY1FORCASTCONT);
-  lv_label_set_long_mode(GUI_Label__home__DAYLY1FORCASTSTATUSQ,
-                         LV_LABEL_LONG_WRAP);
-  lv_obj_set_align(GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Label__home__DAYLY1FORCASTSTATUSQ, 20, 20);
-  lv_obj_set_size(GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_SIZE_CONTENT,
-                  LV_SIZE_CONTENT);
-
   GUI_Panel__home__details_separator_1_panel_2 =
       lv_obj_create(GUI_Container__home__daily_forecast_items_cont);
   lv_obj_remove_flag(GUI_Panel__home__details_separator_1_panel_2,
@@ -476,7 +467,7 @@ void GUI_initScreen__home() {
   lv_obj_set_flex_grow(GUI_Container__home__DAYLY2FORCASTCONT, 1);
   lv_obj_set_align(GUI_Container__home__DAYLY2FORCASTCONT, LV_ALIGN_CENTER);
   lv_obj_set_pos(GUI_Container__home__DAYLY2FORCASTCONT, 20, 20);
-  lv_obj_set_height(GUI_Container__home__DAYLY2FORCASTCONT, lv_pct(100));
+  lv_obj_set_height(GUI_Container__home__DAYLY2FORCASTCONT, lv_pct(70));
 
   GUI_Label__home__DAYLY2FORCASTDAYQ =
       lv_label_create(GUI_Container__home__DAYLY2FORCASTCONT);
@@ -502,15 +493,6 @@ void GUI_initScreen__home() {
   lv_obj_set_size(GUI_Label__home__DAYLY2FORCASTTEMPLOWQ, LV_SIZE_CONTENT,
                   LV_SIZE_CONTENT);
 
-  GUI_Label__home__DAYLY2FORCASTSTATUSQ =
-      lv_label_create(GUI_Container__home__DAYLY2FORCASTCONT);
-  lv_label_set_long_mode(GUI_Label__home__DAYLY2FORCASTSTATUSQ,
-                         LV_LABEL_LONG_WRAP);
-  lv_obj_set_align(GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Label__home__DAYLY2FORCASTSTATUSQ, 20, 20);
-  lv_obj_set_size(GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_SIZE_CONTENT,
-                  LV_SIZE_CONTENT);
-
   GUI_Panel__home__details_separator_1_panel_1 =
       lv_obj_create(GUI_Container__home__daily_forecast_items_cont);
   lv_obj_remove_flag(GUI_Panel__home__details_separator_1_panel_1,
@@ -528,7 +510,7 @@ void GUI_initScreen__home() {
                      LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_flex_grow(GUI_Container__home__DAYLY3FORCASTCONT, 1);
   lv_obj_set_align(GUI_Container__home__DAYLY3FORCASTCONT, LV_ALIGN_CENTER);
-  lv_obj_set_height(GUI_Container__home__DAYLY3FORCASTCONT, lv_pct(100));
+  lv_obj_set_height(GUI_Container__home__DAYLY3FORCASTCONT, lv_pct(70));
 
   GUI_Label__home__DAYLY3FORCASTDAYQ =
       lv_label_create(GUI_Container__home__DAYLY3FORCASTCONT);
@@ -552,15 +534,6 @@ void GUI_initScreen__home() {
                          LV_LABEL_LONG_WRAP);
   lv_obj_set_align(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ, LV_ALIGN_CENTER);
   lv_obj_set_size(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ, LV_SIZE_CONTENT,
-                  LV_SIZE_CONTENT);
-
-  GUI_Label__home__DAYLY3FORCASTSTATUSQ =
-      lv_label_create(GUI_Container__home__DAYLY3FORCASTCONT);
-  lv_label_set_long_mode(GUI_Label__home__DAYLY3FORCASTSTATUSQ,
-                         LV_LABEL_LONG_WRAP);
-  lv_obj_set_align(GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_ALIGN_CENTER);
-  lv_obj_set_pos(GUI_Label__home__DAYLY3FORCASTSTATUSQ, 20, 20);
-  lv_obj_set_size(GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_SIZE_CONTENT,
                   LV_SIZE_CONTENT);
 
   GUI_Container__home__NETWORKSTAUSANDMENUCONT =
@@ -670,10 +643,10 @@ void GUI_initScreenTexts__home() {
   lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ, "113°");
   lv_label_set_text(GUI_Label__home__details_humidity_title_lbl, "Humidity");
   lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, "63%");
-  lv_label_set_text(GUI_Label__home__details_wind_title_lbl, "  Wind-mph");
+  lv_label_set_text(GUI_Label__home__details_wind_title_lbl, " Wind-mph");
   lv_label_set_text(GUI_Label__home__details_wind_speed_lbl, "12");
-  lv_label_set_text(GUI_Label__home__label_15, "Chance for rain");
-  lv_label_set_text(GUI_Label__home__label_16, "50%");
+  lv_label_set_text(GUI_Label__home__Precipitation, "Precipitation");
+  lv_label_set_text(GUI_Label__home__PRECIPITATIONQ, "0.1 IN");
   lv_label_set_text(GUI_Label__home__HR1FORCASTTIMEQ, "7PM");
   lv_label_set_text(GUI_Label__home__HR1FORCASTTEMPQ, "115°");
   lv_label_set_text(GUI_Label__home__HR2FORCASTTIMEQ, "8PM");
@@ -685,15 +658,12 @@ void GUI_initScreenTexts__home() {
   lv_label_set_text(GUI_Label__home__DAYLY1FORCASTDAYQ, "Mon");
   lv_label_set_text(GUI_Label__home__DAYLY1FORCASTTEMPHIGHQ, "115°");
   lv_label_set_text(GUI_Label__home__DAYLY1FORCASTTEMPLOWQ, "115°");
-  lv_label_set_text(GUI_Label__home__DAYLY1FORCASTSTATUSQ, "CLOUDY\nCLOUDY");
   lv_label_set_text(GUI_Label__home__DAYLY2FORCASTDAYQ, "Tue");
   lv_label_set_text(GUI_Label__home__DAYLY2FORCASTTEMPHIGHQ, "115°");
   lv_label_set_text(GUI_Label__home__DAYLY2FORCASTTEMPLOWQ, "115°");
-  lv_label_set_text(GUI_Label__home__DAYLY2FORCASTSTATUSQ, "SUNNY\nSUNNY");
   lv_label_set_text(GUI_Label__home__DAYLY3FORCASTDAYQ, "Wed");
   lv_label_set_text(GUI_Label__home__DAYLY3FORCASTTEMPHIGHQ, "115°");
   lv_label_set_text(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ, "115°");
-  lv_label_set_text(GUI_Label__home__DAYLY3FORCASTSTATUSQ, "RAIN\nRAIN");
 }
 
 void GUI_initScreenStyles__home() {
@@ -928,24 +898,24 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_Nw5ZzS54u0kNST__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__label_15,
+  lv_obj_add_style(GUI_Label__home__Precipitation,
                    &GUI_Style__class_rh9OIkK6YioF9J__test1style,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_15, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__Precipitation, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_white);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_15, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__Precipitation, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_white);
 
-  lv_obj_add_style(GUI_Label__home__label_16,
+  lv_obj_add_style(GUI_Label__home__PRECIPITATIONQ,
                    &GUI_Style__class_rh9OIkK6YioF9J__test1style,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_16, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__PRECIPITATIONQ, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_white);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_16, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__PRECIPITATIONQ, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_white);
 
   lv_obj_add_style(GUI_Container__home__hourly_forecast_cont,
@@ -1129,16 +1099,6 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_9MpPQcvJSEks3y__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__DAYLY1FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
-
   lv_obj_add_style(GUI_Panel__home__details_separator_1_panel_2,
                    &GUI_Style__class_OvMbXZAsPbZjnb__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1192,16 +1152,6 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_wKOu7L7fJpWUc8__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__DAYLY2FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
-
   lv_obj_add_style(GUI_Panel__home__details_separator_1_panel_1,
                    &GUI_Style__class_HZ1hQzhR4glwPE__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1254,16 +1204,6 @@ void GUI_initScreenStyles__home() {
   lv_obj_add_style(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ,
                    &GUI_Style__class_5aC5gkRCTJRBpX__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
-
-  lv_obj_add_style(GUI_Label__home__DAYLY3FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
 
   lv_obj_add_style(GUI_Container__home__NETWORKSTAUSANDMENUCONT,
                    &GUI_Style__class_292pAkrGlFbI2Z__,

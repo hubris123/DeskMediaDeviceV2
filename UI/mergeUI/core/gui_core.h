@@ -114,7 +114,6 @@ extern lv_style_t GUI_Style__class_dVaeR4MlNk6JVP__;
 extern lv_style_t GUI_Style__class_vksvC08E9lfusD__;
 extern lv_style_t GUI_Style__class_fqJ9BAuupzIIWh__;
 extern lv_style_t GUI_Style__class_3VuxfhxbEdo6EO__;
-extern lv_style_t GUI_Style__class_EQHHuxrbsUsFwQ__;
 extern lv_style_t GUI_Style__class_YQdvrXqq6m6UwT__;
 extern lv_style_t GUI_Style__class_5dd3lX6oAKILzH__;
 extern lv_style_t GUI_Style__class_WOdzLKOUWTKn2D__;

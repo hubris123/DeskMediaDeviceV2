@@ -11,6 +11,12 @@
 
 static const char *TAG = "WeatherAPI";
 
+static const char *degrees_to_compass(int deg)
+{
+    const char *dirs[] = {"N","NE","E","SE","S","SW","W","NW"};
+    return dirs[((deg + 22) % 360) / 45];
+}
+
 /**
  * HTTP response buffer for API calls
  */
@@ -183,7 +189,12 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
     cJSON *humidity      = cJSON_GetObjectItem(current, "relative_humidity_2m");
     cJSON *wmo_code      = cJSON_GetObjectItem(current, "weather_code");
     cJSON *wind_speed    = cJSON_GetObjectItem(current, "wind_speed_10m");
+    cJSON *wind_dir      = cJSON_GetObjectItem(current, "wind_direction_10m");
     cJSON *is_day        = cJSON_GetObjectItem(current, "is_day");
+    cJSON *precip        = cJSON_GetObjectItem(current, "precipitation");
+    cJSON *rain          = cJSON_GetObjectItem(current, "rain");
+    cJSON *showers       = cJSON_GetObjectItem(current, "showers");
+    cJSON *snowfall      = cJSON_GetObjectItem(current, "snowfall");
     cJSON *current_time  = cJSON_GetObjectItem(current, "time");
 
     if (!temp || !wmo_code) {
@@ -195,9 +206,15 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
     weather->current_temp          = temp->valuedouble;
     weather->current_apparent_temp = apparent_temp ? apparent_temp->valuedouble : temp->valuedouble;
     weather->current_humidity      = humidity ? (float)humidity->valueint : 0;
-    weather->current_wind_speed    = wind_speed ? wind_speed->valuedouble : 0;
+    weather->current_wind_speed     = wind_speed ? wind_speed->valuedouble : 0;
+    weather->current_wind_direction = wind_dir   ? wind_dir->valueint     : 0;
     weather->current_weather_code  = wmo_code->valueint;
-    weather->current_precip_prob   = 0; // not in current, use daily
+    weather->current_precip_prob   = 0;
+    // Sum all precipitation types for current total
+    weather->current_precip = (precip ? precip->valuedouble : 0.0f)
+                            + (rain    ? rain->valuedouble    : 0.0f)
+                            + (showers ? showers->valuedouble : 0.0f)
+                            + (snowfall? snowfall->valuedouble: 0.0f);
     weather->current_is_day        = is_day ? is_day->valueint : 1;
     weather->current_time          = current_time ? (uint32_t)current_time->valueint : (uint32_t)time(NULL);
 
@@ -241,11 +258,19 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                     weather->hourly.hours[i].weather_code = code_item->valueint;
 
                     // Format time as "3 PM", "4 PM", etc.
-                    struct tm *local_tm = localtime(&t);
+                    // Apply MST offset (UTC-7)
+                    time_t t_mst = t - (7 * 3600);
+                    struct tm *local_tm = gmtime(&t_mst);
                     if (local_tm) {
-                        strftime(weather->hourly.times_12h[i],
-                                sizeof(weather->hourly.times_12h[i]),
-                                "%I %p", local_tm);
+                        char tmp[10] = {0};
+                        strftime(tmp, sizeof(tmp), "%I%p", local_tm);
+                        // Strip leading zero: "04PM" -> "4PM"
+                        const char *tp = (tmp[0] == '0') ? tmp + 1 : tmp;
+                        size_t tp_len = strlen(tp);
+                        size_t copy_len = tp_len < sizeof(weather->hourly.times_12h[i]) - 1
+                                        ? tp_len : sizeof(weather->hourly.times_12h[i]) - 1;
+                        memcpy(weather->hourly.times_12h[i], tp, copy_len);
+                        weather->hourly.times_12h[i][copy_len] = '\0';
                     } else {
                         snprintf(weather->hourly.times_12h[i],
                                 sizeof(weather->hourly.times_12h[i]), "--");
@@ -297,6 +322,10 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
             }
         }
     }
+
+    // Parse UTC offset from timezone=auto
+    cJSON *utc_offset = cJSON_GetObjectItem(root, "utc_offset_seconds");
+    weather->utc_offset_seconds = utc_offset ? utc_offset->valueint : -21600; // default MDT
 
     weather->is_valid = true;
     weather->last_update = (uint32_t)time(NULL);
@@ -362,15 +391,16 @@ esp_err_t weather_fetch_current(const location_t *location, weather_data_t *weat
     snprintf(url, sizeof(url),
              "https://api.open-meteo.com/v1/forecast?"
              "latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,rain,showers,snowfall,wind_direction_10m,is_day"
              "&hourly=temperature_2m,weather_code"
-             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+             "&daily=weather_code,temperature_2m_max,temperature_2m_min"
              "&timeformat=unixtime"
              "&temperature_unit=fahrenheit"
              "&wind_speed_unit=mph"
              "&precipitation_unit=inch"
              "&forecast_days=4"
-             "&forecast_hours=6",
+             "&forecast_hours=6"
+             "&timezone=auto",
              location->latitude, location->longitude);
 
     ESP_LOGI(TAG, "Fetching weather for (%.4f, %.4f)", location->latitude, location->longitude);

@@ -230,24 +230,24 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_Nw5ZzS54u0kNST__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__label_15,
+  lv_obj_add_style(GUI_Label__home__Precipitation,
                    &GUI_Style__class_rh9OIkK6YioF9J__test1style,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_15, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__Precipitation, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_white);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_15, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__Precipitation, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_white);
 
-  lv_obj_add_style(GUI_Label__home__label_16,
+  lv_obj_add_style(GUI_Label__home__PRECIPITATIONQ,
                    &GUI_Style__class_rh9OIkK6YioF9J__test1style,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_16, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__PRECIPITATIONQ, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_white);
   ui_object_set_themeable_style_property(
-      GUI_Label__home__label_16, LV_PART_MAIN | LV_STATE_DEFAULT,
+      GUI_Label__home__PRECIPITATIONQ, LV_PART_MAIN | LV_STATE_DEFAULT,
       LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_white);
 
   lv_obj_add_style(GUI_Container__home__hourly_forecast_cont,
@@ -431,16 +431,6 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_9MpPQcvJSEks3y__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__DAYLY1FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY1FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
-
   lv_obj_add_style(GUI_Panel__home__details_separator_1_panel_2,
                    &GUI_Style__class_OvMbXZAsPbZjnb__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -494,16 +484,6 @@ void GUI_initScreenStyles__home() {
                    &GUI_Style__class_wKOu7L7fJpWUc8__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  lv_obj_add_style(GUI_Label__home__DAYLY2FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY2FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
-
   lv_obj_add_style(GUI_Panel__home__details_separator_1_panel_1,
                    &GUI_Style__class_HZ1hQzhR4glwPE__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -556,16 +536,6 @@ void GUI_initScreenStyles__home() {
   lv_obj_add_style(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ,
                    &GUI_Style__class_5aC5gkRCTJRBpX__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
-
-  lv_obj_add_style(GUI_Label__home__DAYLY3FORCASTSTATUSQ,
-                   &GUI_Style__class_hTcCCcEmxbV9uE__lightgreytextlabelsize,
-                   LV_PART_MAIN | LV_STATE_DEFAULT);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_COLOR, _ui_theme_bg_color_light_gray);
-  ui_object_set_themeable_style_property(
-      GUI_Label__home__DAYLY3FORCASTSTATUSQ, LV_PART_MAIN | LV_STATE_DEFAULT,
-      LV_STYLE_TEXT_OPA, _ui_theme_bg_opa_light_gray);
 
   lv_obj_add_style(GUI_Container__home__NETWORKSTAUSANDMENUCONT,
                    &GUI_Style__class_292pAkrGlFbI2Z__,

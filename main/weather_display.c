@@ -51,15 +51,14 @@ void weather_display_update(const weather_display_t *w)
     snprintf(buf, sizeof(buf), "%d%%", w->current_humidity);
     lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, buf);
 
-    /* Chance of rain */
-    snprintf(buf, sizeof(buf), "%d%%", w->current_precip_prob);
-    // lv_label_set_text(GUI_Label__home__CHANCEOFRAINQ, buf); // removed from UI
+    /* Precipitation in inches */
+    snprintf(buf, sizeof(buf), "%.2f IN", w->current_precip_in);
+    lv_label_set_text(GUI_Label__home__PRECIPITATIONQ, buf);
 
-    /* Wind speed (child label inside the container) */
+    /* Wind speed + direction (child label inside the container) */
     lv_obj_t *wind_label = get_wind_label();
     if (wind_label) {
-        snprintf(buf, sizeof(buf), "%.0f", w->current_wind_mph);
-        lv_label_set_text(wind_label, buf);
+        lv_label_set_text(wind_label, w->current_wind_str);
     }
 
     /* Time */
@@ -108,15 +107,12 @@ void weather_display_update(const weather_display_t *w)
     lv_label_set_text(GUI_Label__home__DAYLY1FORCASTTEMPHIGHQ, buf);
     snprintf(buf, sizeof(buf), "%.0f°", w->daily_low_f[0]);
     lv_label_set_text(GUI_Label__home__DAYLY1FORCASTTEMPLOWQ, buf);
-    lv_label_set_text(GUI_Label__home__DAYLY1FORCASTSTATUSQ, w->daily_status[0]);
-
     /* Day 2 */
     lv_label_set_text(GUI_Label__home__DAYLY2FORCASTDAYQ, w->daily_day[1]);
     snprintf(buf, sizeof(buf), "%.0f°", w->daily_high_f[1]);
     lv_label_set_text(GUI_Label__home__DAYLY2FORCASTTEMPHIGHQ, buf);
     snprintf(buf, sizeof(buf), "%.0f°", w->daily_low_f[1]);
     lv_label_set_text(GUI_Label__home__DAYLY2FORCASTTEMPLOWQ, buf);
-    lv_label_set_text(GUI_Label__home__DAYLY2FORCASTSTATUSQ, w->daily_status[1]);
 
     /* Day 3 */
     lv_label_set_text(GUI_Label__home__DAYLY3FORCASTDAYQ, w->daily_day[2]);
@@ -124,7 +120,6 @@ void weather_display_update(const weather_display_t *w)
     lv_label_set_text(GUI_Label__home__DAYLY3FORCASTTEMPHIGHQ, buf);
     snprintf(buf, sizeof(buf), "%.0f°", w->daily_low_f[2]);
     lv_label_set_text(GUI_Label__home__DAYLY3FORCASTTEMPLOWQ, buf);
-    lv_label_set_text(GUI_Label__home__DAYLY3FORCASTSTATUSQ, w->daily_status[2]);
 
     ESP_LOGI(TAG, "Display updated: %s %.0fF %s",
              w->city, w->current_temp_f, weather_description(w->current_wmo));

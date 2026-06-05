@@ -158,9 +158,6 @@ void GUI_initScreenStyles__keyboardzipcode() {
       GUI_Keyboard__keyboardzipcode__keyboardzip,
       LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_OUTLINE_OPA,
       _ui_theme_bg_opa_light_gray);
-  lv_obj_add_style(GUI_Keyboard__keyboardzipcode__keyboardzip,
-                   &GUI_Style__class_EQHHuxrbsUsFwQ__,
-                   LV_PART_ITEMS | LV_STATE_DEFAULT);
 
   lv_obj_add_style(GUI_Container__keyboardzipcode__container_12,
                    &GUI_Style__class_YQdvrXqq6m6UwT__,

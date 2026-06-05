@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "network_selector.h"
+#include "weather/weather_task.h"
 #include "GUI.h"
 #include "bsp/display.h"
 #include "audio.h"
@@ -43,11 +44,13 @@ static void save_btn_cb(lv_event_t *e)
         nvs_store_wifi(ssid, pass ? pass : "");
     }
 
-    // Save zip code to NVS
+    // Save zip code to NVS and always trigger weather update
     const char *zip = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_1);
     if (zip && strlen(zip) > 0) {
         nvs_store_zipcode(zip);
         strncpy(s_zipcode, zip, sizeof(s_zipcode) - 1);
+        ESP_LOGI(TAG, "Triggering weather update for zip: %s", zip);
+        weather_set_location(zip);
     }
 
     audio_play_success();

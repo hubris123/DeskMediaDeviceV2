@@ -62,4 +62,5 @@ LV_IMG_DECLARE(upload_hclbg1_52bba57ce173452fadd7595a14167a99_png);
 LV_IMG_DECLARE(upload_down1_991ef596d2b7435c9663fdfd256c222a_png);
 LV_IMG_DECLARE(upload_play_6c36b149bbde4d87af41769e62ca887f_png);
 LV_IMG_DECLARE(upload_up1_09eda56b61fb420bb4679dd39a4c9782_png);
+LV_FONT_DECLARE(numb50);
 #endif /* _GUI_H */

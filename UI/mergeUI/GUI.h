@@ -15,7 +15,7 @@
 
 LV_IMG_DECLARE(upload_bg2_8b751f9997764edca3d7f03db3dd4a54_png);
 LV_FONT_DECLARE(title_1);
-LV_FONT_DECLARE(number_1);
+LV_FONT_DECLARE(numb50);
 LV_FONT_DECLARE(subtitle_1);
 LV_FONT_DECLARE(display_1);
 LV_IMG_DECLARE(upload_1_7fa59a4c14414e4ab42f8f8cf8ee5df8_png);
@@ -29,6 +29,7 @@ LV_IMG_DECLARE(upload_up1_09eda56b61fb420bb4679dd39a4c9782_png);
 LV_IMG_DECLARE(upload_play_6c36b149bbde4d87af41769e62ca887f_png);
 LV_FONT_DECLARE(font);
 LV_IMG_DECLARE(upload_down1_991ef596d2b7435c9663fdfd256c222a_png);
+LV_FONT_DECLARE(number_1);
 LV_IMG_DECLARE(upload_networkred_45539a8ee52f46688e0fbeb4c45b9ddf_png);
 LV_IMG_DECLARE(upload_2s_37e4aa2fa7024542b513edb68eebbfa3_png);
 LV_IMG_DECLARE(upload_3s_e6f8aad40a204657b22d932c4b20fb18_png);

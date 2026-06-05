@@ -4,6 +4,7 @@ SET( SOURCES
     assets/fonts/font.c
     assets/fonts/header_1.c
     assets/fonts/label_1.c
+    assets/fonts/numb50.c
     assets/fonts/number_1.c
     assets/fonts/subtitle_1.c
     assets/fonts/title_1.c

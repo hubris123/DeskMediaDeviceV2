@@ -10,6 +10,7 @@ idf_component_register(
         "UIFiles/assets/fonts/font_15.c"
         "UIFiles/assets/fonts/header_1.c"
         "UIFiles/assets/fonts/label_1.c"
+        "UIFiles/assets/fonts/numb50.c"
         "UIFiles/assets/fonts/number_1.c"
         "UIFiles/assets/fonts/subtitle_1.c"
         "UIFiles/assets/fonts/tiny.c"

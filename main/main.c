@@ -32,6 +32,7 @@
 #include "ui/data_binding.h"
 #include "wifi_manager.h"
 #include "weather_display.h"
+#include "weather_icons.h"
 
 static const char *TAG = "DeskMediaDevice";
 
@@ -348,6 +349,7 @@ static void create_ui(void)
     // Set clean default values on all weather widgets — prevents blank/junk display
     ui_set_default_weather();
 
+
     // Wire up settings button and settings screen
     settings_ui_init();
 }
@@ -446,7 +448,13 @@ void app_main(void)
             disp.current_temp_f   = api_data.current_temp;
             disp.feels_like_f     = api_data.current_apparent_temp;
             disp.current_humidity = (int)api_data.current_humidity;
-            disp.current_wind_mph = api_data.current_wind_speed;
+            disp.current_wind_mph  = api_data.current_wind_speed;
+            disp.current_precip_in = api_data.current_precip;
+            // Wind string: speed + compass direction, no space e.g. "9NW"
+            const char *compass[] = {"N","NE","E","SE","S","SW","W","NW"};
+            const char *dir = compass[((api_data.current_wind_direction + 22) % 360) / 45];
+            snprintf(disp.current_wind_str, sizeof(disp.current_wind_str),
+                     "%.0f%s", api_data.current_wind_speed, dir);
             disp.current_wmo      = api_data.current_weather_code;
             disp.is_night         = (api_data.current_is_day == 0);
             disp.wifi_connected   = wifi_manager_is_connected();
@@ -454,10 +462,23 @@ void app_main(void)
             strncpy(disp.city,  api_data.city,  sizeof(disp.city) - 1);
             strncpy(disp.state, api_data.state, sizeof(disp.state) - 1);
 
-            // Time from SNTP
+            // Time from SNTP — apply UTC offset from API
             time_t now = time(NULL);
-            struct tm *tm_info = localtime(&now);
-            if (tm_info) strftime(disp.time_str, sizeof(disp.time_str), "%I:%M %p", tm_info);
+            ESP_LOGI(TAG, "SNTP time: %lu, utc_offset: %ld", (unsigned long)now, (long)api_data.utc_offset_seconds);
+            if (now > 1700000000) { // valid if past Nov 2023
+                time_t local = now + api_data.utc_offset_seconds;
+                struct tm *tm_info = gmtime(&local);
+                if (tm_info) {
+                    char tmp[12] = {0};
+                    strftime(tmp, sizeof(tmp), "%I:%M%p", tm_info);
+                    // Strip leading zero: "04:10PM" -> "4:10PM"
+                    const char *ts = (tmp[0] == '0') ? tmp + 1 : tmp;
+                    size_t ts_len = strlen(ts);
+                    size_t tc_len = ts_len < sizeof(disp.time_str) - 1 ? ts_len : sizeof(disp.time_str) - 1;
+                    memcpy(disp.time_str, ts, tc_len);
+                    disp.time_str[tc_len] = '\0';
+                }
+            }
 
             // Hourly
             for (int i = 0; i < 4; i++) {
@@ -467,14 +488,14 @@ void app_main(void)
                         sizeof(disp.hourly_time[i]) - 1);
             }
 
-            // Daily
+            // Daily — use weather description, not date string
             for (int i = 0; i < 3; i++) {
                 disp.daily_high_f[i] = api_data.daily[i].temp_high;
                 disp.daily_low_f[i]  = api_data.daily[i].temp_low;
                 disp.daily_wmo[i]    = api_data.daily[i].weather_code;
-                strncpy(disp.daily_day[i],    api_data.daily[i].day_name,
+                strncpy(disp.daily_day[i], api_data.daily[i].day_name,
                         sizeof(disp.daily_day[i]) - 1);
-                strncpy(disp.daily_status[i], api_data.daily[i].date_str,
+                strncpy(disp.daily_status[i], weather_description(api_data.daily[i].weather_code),
                         sizeof(disp.daily_status[i]) - 1);
             }
 

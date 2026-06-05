@@ -25,8 +25,7 @@ lv_obj_t *GUI_Label__home__details_wind_title_lbl;
 lv_obj_t *GUI_Container__home__CURRENTWINDQ;
 lv_obj_t *GUI_Label__home__details_wind_speed_lbl;
 lv_obj_t *GUI_Container__home__container_14;
-lv_obj_t *GUI_Label__home__label_15;
-lv_obj_t *GUI_Label__home__label_16;
+lv_obj_t *GUI_Label__home__PRECIPITATIONQ;
 lv_obj_t *GUI_Container__home__hourly_forecast_cont;
 lv_obj_t *GUI_Container__home__hourly_forecast_items_cont;
 lv_obj_t *GUI_Container__home__HR1FORCASTCONT;
@@ -51,19 +50,19 @@ lv_obj_t *GUI_Container__home__DAYLY1FORCASTCONT;
 lv_obj_t *GUI_Label__home__DAYLY1FORCASTDAYQ;
 lv_obj_t *GUI_Label__home__DAYLY1FORCASTTEMPHIGHQ;
 lv_obj_t *GUI_Label__home__DAYLY1FORCASTTEMPLOWQ;
-lv_obj_t *GUI_Label__home__DAYLY1FORCASTSTATUSQ;
+
 lv_obj_t *GUI_Panel__home__details_separator_1_panel_2;
 lv_obj_t *GUI_Container__home__DAYLY2FORCASTCONT;
 lv_obj_t *GUI_Label__home__DAYLY2FORCASTDAYQ;
 lv_obj_t *GUI_Label__home__DAYLY2FORCASTTEMPHIGHQ;
 lv_obj_t *GUI_Label__home__DAYLY2FORCASTTEMPLOWQ;
-lv_obj_t *GUI_Label__home__DAYLY2FORCASTSTATUSQ;
+
 lv_obj_t *GUI_Panel__home__details_separator_1_panel_1;
 lv_obj_t *GUI_Container__home__DAYLY3FORCASTCONT;
 lv_obj_t *GUI_Label__home__DAYLY3FORCASTDAYQ;
 lv_obj_t *GUI_Label__home__DAYLY3FORCASTTEMPHIGHQ;
 lv_obj_t *GUI_Label__home__DAYLY3FORCASTTEMPLOWQ;
-lv_obj_t *GUI_Label__home__DAYLY3FORCASTSTATUSQ;
+
 lv_obj_t *GUI_Container__home__NETWORKSTAUSANDMENUCONT;
 lv_obj_t *GUI_Panel__home__panel;
 lv_obj_t *GUI_Image__home__NETWORKCONNECTEDICONQ;
@@ -297,3 +296,5 @@ lv_style_t GUI_Style__class_S1ccQxKirdSwrF__;
 lv_style_t GUI_Style__class_QF2GdgY5xfVzQ0__;
 lv_style_t GUI_Style__class_kpy4gFNlDBjSEj__;
 lv_style_t GUI_Style__class_BaRRq8Hq0lhEou__;
+
+lv_obj_t *GUI_Label__home__Precipitation;
