@@ -1,4 +1,5 @@
 #include "weather_api.h"
+#include "wifi_manager.h"
 #include "wmo_icon_map.h"
 #include "esp_http_client.h"
 #include "cJSON.h"
@@ -389,6 +390,5 @@ esp_err_t weather_update_from_zipcode(const char *zip, weather_data_t *weather)
 
 bool weather_is_wifi_ready(void)
 {
-    // TODO: replace with real WiFi check once esp_wifi_remote is wired up
-    return true;
+    return wifi_manager_is_connected();
 }

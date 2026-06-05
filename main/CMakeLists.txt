@@ -9,6 +9,7 @@ idf_component_register(
         ui/data_binding.c
         ui/settings.c
         ui/network_selector.c
+        wifi_manager.c
         weather_icons.c
         weather_display.c
     INCLUDE_DIRS
@@ -32,5 +33,6 @@ idf_component_register(
         esp_wifi
         esp_event
         esp_netif
+        lwip
 )
 

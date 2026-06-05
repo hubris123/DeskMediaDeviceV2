@@ -30,6 +30,7 @@
 #include "weather/wmo_icon_map.h"
 #include "storage/nvs_storage.h"
 #include "ui/data_binding.h"
+#include "wifi_manager.h"
 
 static const char *TAG = "DeskMediaDevice";
 
@@ -372,6 +373,10 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "WiFi initialized in STA mode");
+
+    // Init WiFi manager event handlers and connect with saved credentials
+    wifi_manager_init();
+    wifi_manager_connect_saved();
 
     ESP_LOGI(TAG, "Starting Desk Media Device");
     scan_sd_card();
