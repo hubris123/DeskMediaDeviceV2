@@ -9,7 +9,7 @@
  * Maximum HTTP response buffer size (8KB)
  * Open-Meteo responses are typically 2-3KB
  */
-#define WEATHER_HTTP_BUFFER_SIZE 8192
+#define WEATHER_HTTP_BUFFER_SIZE 32768
 
 /**
  * API timeout in milliseconds

@@ -67,6 +67,12 @@ esp_err_t ui_update_network_status(bool connected);
 esp_err_t ui_refresh_weather_display(const weather_data_t *weather, bool wifi_connected);
 
 /**
+ * Set clean default placeholder values on all weather widgets
+ * Call once after GUI_init() so display never shows blank/junk
+ */
+void ui_set_default_weather(void);
+
+/**
  * Helper: Format temperature with degree symbol
  * @param temp: Temperature in Fahrenheit
  * @param buf: Output buffer

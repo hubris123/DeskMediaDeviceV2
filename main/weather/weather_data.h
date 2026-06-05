@@ -54,9 +54,12 @@ typedef struct {
 typedef struct {
     // Current conditions
     float current_temp;
+    float current_apparent_temp;
     float current_humidity;
+    float current_wind_speed;
     int current_weather_code;
     int current_precip_prob;
+    int current_is_day;          // 1 = day, 0 = night (from API)
     uint32_t current_time;
 
     // Location info

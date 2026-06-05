@@ -403,8 +403,13 @@ void settings_ui_init(void)
     if (nvs_load_zipcode(saved_zip, sizeof(saved_zip)) == ESP_OK && strlen(saved_zip) > 0) {
         memcpy(s_zipcode, saved_zip, sizeof(s_zipcode) - 1);
         s_zipcode[sizeof(s_zipcode) - 1] = '\0';
-        lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_1, saved_zip);
+    } else {
+        // No zip in NVS — write the default
+        nvs_store_zipcode(s_zipcode);
+        memcpy(saved_zip, s_zipcode, sizeof(saved_zip));
+        ESP_LOGI(TAG, "Writing default zip to NVS: %s", s_zipcode);
     }
+    lv_textarea_set_text(GUI_Textarea__settingswindow__textarea_1, s_zipcode);
 
     ESP_LOGI(TAG, "Settings UI initialized");
 }

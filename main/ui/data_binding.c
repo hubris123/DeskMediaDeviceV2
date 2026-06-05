@@ -83,6 +83,55 @@ static const lv_image_dsc_t *get_weather_icon_22(int icon_num)
     }
 }
 
+// ============ Default Placeholder Values ============
+
+void ui_set_default_weather(void)
+{
+    // Current weather
+    lv_label_set_text(GUI_Label__home__CURRENTTEMPQ,     "--°F");
+    lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ,   "--°F");
+    lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, "--%");
+    lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,   "--");
+    lv_label_set_text(GUI_Label__home__LOCATIONQ,        "Las Cruces, NM");
+    lv_label_set_text(GUI_Label__home__CURRENTTIMEQ,     "--:--");
+
+    // Hourly forecast
+    lv_obj_t *time_labels[] = {
+        GUI_Label__home__HR1FORCASTTIMEQ,
+        GUI_Label__home__HR2FORCASTTIMEQ,
+        GUI_Label__home__HR3FORCASTTIMEQ,
+        GUI_Label__home__HR4FORCASTTIMEQ,
+    };
+    lv_obj_t *temp_labels[] = {
+        GUI_Label__home__HR1FORCASTTEMPQ,
+        GUI_Label__home__HR2FORCASTTEMPQ,
+        GUI_Label__home__HR3FORCASTTEMPQ,
+        GUI_Label__home__HR4FORCASTTEMPQ,
+    };
+    for (int i = 0; i < 4; i++) {
+        lv_label_set_text(time_labels[i], "--");
+        lv_label_set_text(temp_labels[i], "--°");
+    }
+
+    // Daily forecast
+    lv_obj_t *day_labels[]  = { GUI_Label__home__DAYLY1FORCASTDAYQ,      GUI_Label__home__DAYLY2FORCASTDAYQ,      GUI_Label__home__DAYLY3FORCASTDAYQ      };
+    lv_obj_t *high_labels[] = { GUI_Label__home__DAYLY1FORCASTTEMPHIGHQ, GUI_Label__home__DAYLY2FORCASTTEMPHIGHQ, GUI_Label__home__DAYLY3FORCASTTEMPHIGHQ };
+    lv_obj_t *low_labels[]  = { GUI_Label__home__DAYLY1FORCASTTEMPLOWQ,  GUI_Label__home__DAYLY2FORCASTTEMPLOWQ,  GUI_Label__home__DAYLY3FORCASTTEMPLOWQ  };
+    lv_obj_t *stat_labels[] = { GUI_Label__home__DAYLY1FORCASTSTATUSQ,   GUI_Label__home__DAYLY2FORCASTSTATUSQ,   GUI_Label__home__DAYLY3FORCASTSTATUSQ   };
+    for (int i = 0; i < 3; i++) {
+        lv_label_set_text(day_labels[i],  "---");
+        lv_label_set_text(high_labels[i], "--°");
+        lv_label_set_text(low_labels[i],  "--°");
+        lv_label_set_text(stat_labels[i], "--");
+    }
+
+    // Network status — disconnected by default
+    lv_image_set_src(GUI_Image__home__NETWORKCONNECTEDICONQ,
+                     &upload_networkred_45539a8ee52f46688e0fbeb4c45b9ddf_png);
+
+    ESP_LOGI(TAG, "Default weather display set");
+}
+
 // ============ Public UI Update Functions ============
 
 esp_err_t ui_update_current_weather(const weather_data_t *weather)
@@ -105,25 +154,21 @@ esp_err_t ui_update_current_weather(const weather_data_t *weather)
     format_temperature(weather->current_temp, buffer, sizeof(buffer));
     lv_label_set_text(GUI_Label__home__CURRENTTEMPQ, buffer);
 
-    // Feels like (use same as current temp for now)
-    format_temperature(weather->current_temp, buffer, sizeof(buffer));
+    // Feels like
+    format_temperature(weather->current_apparent_temp, buffer, sizeof(buffer));
     lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ, buffer);
 
     // Humidity percentage
-    snprintf(buffer, sizeof(buffer), "%d%%", weather->current_humidity);
+    snprintf(buffer, sizeof(buffer), "%.0f%%", weather->current_humidity);
     lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, buffer);
-
-    // Chance of rain
-    snprintf(buffer, sizeof(buffer), "%d%%", weather->current_precip_prob);
-    // lv_label_set_text(GUI_Label__home__CHANCEOFRAINQ, buffer); // removed from UI
 
     // Weather description
     const char *desc = wmo_get_description(weather->current_weather_code);
     lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ, desc);
 
-    // Weather icon (60x60)
-    int icon_id = wmo_get_icon_id(weather->current_weather_code,
-                                  wmo_is_nighttime(weather->current_time, -7));  // MST offset
+    // Weather icon (60x60) — use is_day from API
+    int is_night = (weather->current_is_day == 0) ? 1 : 0;
+    int icon_id = wmo_get_icon_id(weather->current_weather_code, is_night);
     const lv_image_dsc_t *icon = get_weather_icon_60(icon_id);
     lv_image_set_src(GUI_Image__home__60X60ICONQ, icon);
 

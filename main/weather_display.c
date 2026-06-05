@@ -20,7 +20,7 @@ static lv_obj_t *get_wind_label(void)
 
 /* ── Public API ─────────────────────────────────────────────────────── */
 
-void weather_display_update(const weather_data_t *w)
+void weather_display_update(const weather_display_t *w)
 {
     if (!w) return;
     char buf[64];

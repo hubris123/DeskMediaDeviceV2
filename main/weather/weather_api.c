@@ -1,5 +1,6 @@
 #include "weather_api.h"
 #include "wifi_manager.h"
+#include "esp_crt_bundle.h"
 #include "wmo_icon_map.h"
 #include "esp_http_client.h"
 #include "cJSON.h"
@@ -68,6 +69,7 @@ static esp_err_t http_get(const char *url, http_response_t *response)
         .user_data = response,
         .event_handler = http_event_handler,
         .skip_cert_common_name_check = true,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -76,6 +78,11 @@ static esp_err_t http_get(const char *url, http_response_t *response)
         free(response->buffer);
         return ESP_FAIL;
     }
+
+    // Required headers for Nominatim
+    esp_http_client_set_header(client, "User-Agent", "DeskMediaDevice/1.0 (weather display)");
+    esp_http_client_set_header(client, "Accept", "application/json");
+    esp_http_client_set_header(client, "Host", "nominatim.openstreetmap.org");
 
     esp_err_t err = esp_http_client_perform(client);
     if (err != ESP_OK) {
@@ -114,38 +121,19 @@ static esp_err_t parse_geocoding_response(const char *json_str, location_t *loc)
         return ESP_FAIL;
     }
 
-    // Check if we got results
-    cJSON *array = cJSON_GetObjectItem(root, "address");
+    // Zippopotam.us format: {"places": [{"place name":..., "state abbreviation":..., "latitude":..., "longitude":...}]}
+    cJSON *array = cJSON_GetObjectItem(root, "places");
     if (!cJSON_IsArray(array) || cJSON_GetArraySize(array) == 0) {
-        // Try alternative format for Nominatim
-        cJSON *place_name = cJSON_GetObjectItem(root, "name");
-        cJSON *lat = cJSON_GetObjectItem(root, "lat");
-        cJSON *lon = cJSON_GetObjectItem(root, "lon");
-
-        if (place_name && lat && lon) {
-            loc->latitude = lat->valuedouble;
-            loc->longitude = lon->valuedouble;
-            strncpy(loc->city, place_name->valuestring, sizeof(loc->city) - 1);
-            loc->city[sizeof(loc->city) - 1] = '\0';
-            strncpy(loc->state, "US", sizeof(loc->state) - 1);
-            loc->state[sizeof(loc->state) - 1] = '\0';
-            loc->timestamp = (uint32_t)time(NULL);
-
-            cJSON_Delete(root);
-            return ESP_OK;
-        }
-
         ESP_LOGE(TAG, "No results from geocoding API");
         cJSON_Delete(root);
         return ESP_FAIL;
     }
 
-    // Parse first result
     cJSON *first = cJSON_GetArrayItem(array, 0);
     cJSON *place_name = cJSON_GetObjectItem(first, "place name");
-    cJSON *state = cJSON_GetObjectItem(first, "state");
-    cJSON *lat = cJSON_GetObjectItem(first, "latitude");
-    cJSON *lon = cJSON_GetObjectItem(first, "longitude");
+    cJSON *state      = cJSON_GetObjectItem(first, "state abbreviation");
+    cJSON *lat        = cJSON_GetObjectItem(first, "latitude");
+    cJSON *lon        = cJSON_GetObjectItem(first, "longitude");
 
     if (!place_name || !state || !lat || !lon) {
         ESP_LOGE(TAG, "Missing fields in geocoding response");
@@ -159,8 +147,9 @@ static esp_err_t parse_geocoding_response(const char *json_str, location_t *loc)
     strncpy(loc->state, state->valuestring, sizeof(loc->state) - 1);
     loc->state[sizeof(loc->state) - 1] = '\0';
 
-    loc->latitude = lat->valuedouble;
-    loc->longitude = lon->valuedouble;
+    // Zippopotam returns lat/lon as strings
+    loc->latitude  = (float)atof(lat->valuestring);
+    loc->longitude = (float)atof(lon->valuestring);
     loc->timestamp = (uint32_t)time(NULL);
 
     cJSON_Delete(root);
@@ -189,11 +178,13 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
         return ESP_FAIL;
     }
 
-    cJSON *temp = cJSON_GetObjectItem(current, "temperature_2m");
-    cJSON *humidity = cJSON_GetObjectItem(current, "relative_humidity_2m");
-    cJSON *wmo_code = cJSON_GetObjectItem(current, "weather_code");
-    cJSON *precip = cJSON_GetObjectItem(current, "precipitation_probability");
-    cJSON *current_time = cJSON_GetObjectItem(current, "time");
+    cJSON *temp          = cJSON_GetObjectItem(current, "temperature_2m");
+    cJSON *apparent_temp = cJSON_GetObjectItem(current, "apparent_temperature");
+    cJSON *humidity      = cJSON_GetObjectItem(current, "relative_humidity_2m");
+    cJSON *wmo_code      = cJSON_GetObjectItem(current, "weather_code");
+    cJSON *wind_speed    = cJSON_GetObjectItem(current, "wind_speed_10m");
+    cJSON *is_day        = cJSON_GetObjectItem(current, "is_day");
+    cJSON *current_time  = cJSON_GetObjectItem(current, "time");
 
     if (!temp || !wmo_code) {
         ESP_LOGE(TAG, "Missing temperature or weather_code");
@@ -201,11 +192,14 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
         return ESP_FAIL;
     }
 
-    weather->current_temp = temp->valuedouble;
-    weather->current_humidity = humidity ? humidity->valueint : 0;
-    weather->current_weather_code = wmo_code->valueint;
-    weather->current_precip_prob = precip ? precip->valueint : 0;
-    weather->current_time = (uint32_t)time(NULL);
+    weather->current_temp          = temp->valuedouble;
+    weather->current_apparent_temp = apparent_temp ? apparent_temp->valuedouble : temp->valuedouble;
+    weather->current_humidity      = humidity ? (float)humidity->valueint : 0;
+    weather->current_wind_speed    = wind_speed ? wind_speed->valuedouble : 0;
+    weather->current_weather_code  = wmo_code->valueint;
+    weather->current_precip_prob   = 0; // not in current, use daily
+    weather->current_is_day        = is_day ? is_day->valueint : 1;
+    weather->current_time          = current_time ? (uint32_t)current_time->valueint : (uint32_t)time(NULL);
 
     // Location data
     strncpy(weather->city, loc->city, sizeof(weather->city) - 1);
@@ -239,11 +233,8 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                 cJSON *code_item = cJSON_GetArrayItem(hourly_codes, i);
 
                 if (time_item && temp_item && code_item) {
-                    // Parse time string: "2026-06-02T15:00"
-                    const char *time_str = time_item->valuestring;
-                    struct tm tm = {0};
-                    strptime(time_str, "%Y-%m-%dT%H:%M", &tm);
-                    time_t t = mktime(&tm);
+                    // timeformat=unixtime so times are integers
+                    time_t t = (time_t)time_item->valueint;
 
                     weather->hourly.hours[i].timestamp = (uint32_t)t;
                     weather->hourly.hours[i].temperature = temp_item->valuedouble;
@@ -251,9 +242,14 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
 
                     // Format time as "3 PM", "4 PM", etc.
                     struct tm *local_tm = localtime(&t);
-                    strftime(weather->hourly.times_12h[i],
-                            sizeof(weather->hourly.times_12h[i]),
-                            "%I %p", local_tm);
+                    if (local_tm) {
+                        strftime(weather->hourly.times_12h[i],
+                                sizeof(weather->hourly.times_12h[i]),
+                                "%I %p", local_tm);
+                    } else {
+                        snprintf(weather->hourly.times_12h[i],
+                                sizeof(weather->hourly.times_12h[i]), "--");
+                    }
                 }
             }
         }
@@ -278,22 +274,25 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                 cJSON *code_item = cJSON_GetArrayItem(daily_codes, i);
 
                 if (time_item && high_item && low_item && code_item) {
-                    const char *date_str = time_item->valuestring;
-                    strncpy(weather->daily[i].date_str, date_str,
-                           sizeof(weather->daily[i].date_str) - 1);
+                    // timeformat=unixtime — times are integers
+                    time_t t = (time_t)time_item->valueint;
+                    snprintf(weather->daily[i].date_str,
+                            sizeof(weather->daily[i].date_str), "%lu", (unsigned long)t);
 
                     weather->daily[i].temp_high = high_item->valuedouble;
                     weather->daily[i].temp_low = low_item->valuedouble;
                     weather->daily[i].weather_code = code_item->valueint;
 
-                    // Format day name
-                    struct tm tm = {0};
-                    strptime(date_str, "%Y-%m-%d", &tm);
-                    time_t t = mktime(&tm);
+                    // Format day name from unix timestamp
                     struct tm *local_tm = localtime(&t);
-                    strftime(weather->daily[i].day_name,
-                            sizeof(weather->daily[i].day_name),
-                            "%A", local_tm);
+                    if (local_tm) {
+                        strftime(weather->daily[i].day_name,
+                                sizeof(weather->daily[i].day_name),
+                                "%a", local_tm);  // "Mon", "Tue", etc.
+                    } else {
+                        snprintf(weather->daily[i].day_name,
+                                sizeof(weather->daily[i].day_name), "---");
+                    }
                 }
             }
         }
@@ -316,19 +315,36 @@ esp_err_t weather_geocode_zipcode(const char *zip, location_t *location)
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Build URL: https://nominatim.openstreetmap.org/search?postalcode=80202&country=US&format=json
+    // Zippopotam.us — free, plain HTTP, returns city/state/lat/lon
     char url[512];
-    snprintf(url, sizeof(url),
-             "https://nominatim.openstreetmap.org/search?postalcode=%s&country=US&format=json&limit=1",
-             zip);
+    snprintf(url, sizeof(url), "http://api.zippopotam.us/us/%s", zip);
 
-    ESP_LOGI(TAG, "Geocoding ZIP: %s", zip);
+    ESP_LOGI(TAG, "Geocoding ZIP: %s", url);
 
+    // Use a separate HTTP client with no SSL for Zippopotam
     http_response_t response = {0};
-    esp_err_t err = http_get(url, &response);
-    if (err != ESP_OK) {
-        return err;
-    }
+    response.buffer = malloc(WEATHER_HTTP_BUFFER_SIZE);
+    if (!response.buffer) return ESP_ERR_NO_MEM;
+    response.size = 0;
+    response.capacity = WEATHER_HTTP_BUFFER_SIZE;
+
+    esp_http_client_config_t geo_config = {
+        .url = url,
+        .timeout_ms = WEATHER_API_TIMEOUT_MS,
+        .user_data = &response,
+        .event_handler = http_event_handler,
+        .transport_type = HTTP_TRANSPORT_OVER_TCP,
+        .skip_cert_common_name_check = false,
+    };
+    esp_http_client_handle_t geo_client = esp_http_client_init(&geo_config);
+    if (!geo_client) { free(response.buffer); return ESP_FAIL; }
+
+    esp_http_client_set_header(geo_client, "User-Agent", "DeskMediaDevice/1.0");
+    esp_http_client_set_header(geo_client, "Accept", "application/json");
+
+    esp_err_t err = esp_http_client_perform(geo_client);
+    int status = esp_http_client_get_status_code(geo_client);
+    esp_http_client_cleanup(geo_client);
 
     err = parse_geocoding_response(response.buffer, location);
     free(response.buffer);
@@ -346,12 +362,13 @@ esp_err_t weather_fetch_current(const location_t *location, weather_data_t *weat
     snprintf(url, sizeof(url),
              "https://api.open-meteo.com/v1/forecast?"
              "latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,weather_code,precipitation_probability"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
              "&hourly=temperature_2m,weather_code"
-             "&daily=temperature_2m_max,temperature_2m_min,weather_code"
+             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+             "&timeformat=unixtime"
              "&temperature_unit=fahrenheit"
              "&wind_speed_unit=mph"
-             "&timezone=auto"
+             "&precipitation_unit=inch"
              "&forecast_days=4"
              "&forecast_hours=6",
              location->latitude, location->longitude);

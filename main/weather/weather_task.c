@@ -70,6 +70,19 @@ static void weather_task_main(void *param)
 
                 case CMD_SET_LOCATION:
                     ESP_LOGI(TAG, "Setting location to ZIP: %s", msg.data.zip);
+                    // Wait for WiFi before geocoding
+                    {
+                        int wait_count = 0;
+                        while (!weather_is_wifi_ready() && wait_count < 30) {
+                            ESP_LOGI(TAG, "Waiting for WiFi before geocoding... (%d)", wait_count);
+                            vTaskDelay(pdMS_TO_TICKS(1000));
+                            wait_count++;
+                        }
+                    }
+                    if (!weather_is_wifi_ready()) {
+                        ESP_LOGW(TAG, "WiFi not ready after wait, skipping geocode");
+                        continue;
+                    }
                     if (weather_geocode_zipcode(msg.data.zip, &g_state.location) == ESP_OK) {
                         nvs_store_location(&g_state.location);
                         ESP_LOGI(TAG, "Location set: %s, %s", g_state.location.city, g_state.location.state);
@@ -165,7 +178,7 @@ esp_err_t weather_task_start(void)
     // Create task
     BaseType_t ret = xTaskCreate(weather_task_main,
                                 "weather_task",
-                                4096,  // 4KB stack
+                                8192,  // 8KB stack — needed for HTTPS SSL
                                 NULL,
                                 3,     // Low priority
                                 &g_state.task_handle);

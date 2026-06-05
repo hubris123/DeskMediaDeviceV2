@@ -31,6 +31,7 @@
 #include "storage/nvs_storage.h"
 #include "ui/data_binding.h"
 #include "wifi_manager.h"
+#include "weather_display.h"
 
 static const char *TAG = "DeskMediaDevice";
 
@@ -344,6 +345,9 @@ static void create_ui(void)
     // Set background image on home screen
     lv_obj_set_style_bg_image_src(GUI_Screen__home, &upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
 
+    // Set clean default values on all weather widgets — prevents blank/junk display
+    ui_set_default_weather();
+
     // Wire up settings button and settings screen
     settings_ui_init();
 }
@@ -406,12 +410,84 @@ void app_main(void)
 
     // Initialize weather system
     ESP_LOGI(TAG, "Initializing weather system");
-    ret = nvs_storage_init();
-    if (ret != ESP_OK) { ESP_LOGW(TAG, "NVS storage init failed: %s", esp_err_to_name(ret)); }
 
     ret = weather_task_start();
     if (ret != ESP_OK) { ESP_LOGW(TAG, "Weather task start failed: %s", esp_err_to_name(ret)); }
 
+    // Load saved zip code and kick off weather fetch
+    char saved_zip[16] = "";
+    if (nvs_load_zipcode(saved_zip, sizeof(saved_zip)) != ESP_OK || strlen(saved_zip) == 0) {
+        // No zip saved — write the default so it persists
+        strncpy(saved_zip, "88002", sizeof(saved_zip) - 1);
+        nvs_store_zipcode(saved_zip);
+        ESP_LOGI(TAG, "No zip code saved — using default: %s", saved_zip);
+    } else {
+        ESP_LOGI(TAG, "Loaded zip code from NVS: %s", saved_zip);
+    }
+    weather_set_location(saved_zip);
+
     ESP_LOGI(TAG, "Initialization complete");
-    while (1) { vTaskDelay(pdMS_TO_TICKS(1000)); }
+
+    // Main loop — poll weather data and update display
+    weather_data_t api_data = {0};
+    uint32_t last_displayed_update = 0;
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(5000)); // check every 5 seconds
+
+        if (weather_get_data(&api_data) == ESP_OK &&
+            api_data.last_update != last_displayed_update) {
+
+            last_displayed_update = api_data.last_update;
+
+            // Convert weather_data_t → weather_display_t and update UI
+            weather_display_t disp = {0};
+
+            disp.current_temp_f   = api_data.current_temp;
+            disp.feels_like_f     = api_data.current_apparent_temp;
+            disp.current_humidity = (int)api_data.current_humidity;
+            disp.current_wind_mph = api_data.current_wind_speed;
+            disp.current_wmo      = api_data.current_weather_code;
+            disp.is_night         = (api_data.current_is_day == 0);
+            disp.wifi_connected   = wifi_manager_is_connected();
+
+            strncpy(disp.city,  api_data.city,  sizeof(disp.city) - 1);
+            strncpy(disp.state, api_data.state, sizeof(disp.state) - 1);
+
+            // Time from SNTP
+            time_t now = time(NULL);
+            struct tm *tm_info = localtime(&now);
+            if (tm_info) strftime(disp.time_str, sizeof(disp.time_str), "%I:%M %p", tm_info);
+
+            // Hourly
+            for (int i = 0; i < 4; i++) {
+                disp.hourly_temp_f[i] = api_data.hourly.hours[i].temperature;
+                disp.hourly_wmo[i]    = api_data.hourly.hours[i].weather_code;
+                strncpy(disp.hourly_time[i], api_data.hourly.times_12h[i],
+                        sizeof(disp.hourly_time[i]) - 1);
+            }
+
+            // Daily
+            for (int i = 0; i < 3; i++) {
+                disp.daily_high_f[i] = api_data.daily[i].temp_high;
+                disp.daily_low_f[i]  = api_data.daily[i].temp_low;
+                disp.daily_wmo[i]    = api_data.daily[i].weather_code;
+                strncpy(disp.daily_day[i],    api_data.daily[i].day_name,
+                        sizeof(disp.daily_day[i]) - 1);
+                strncpy(disp.daily_status[i], api_data.daily[i].date_str,
+                        sizeof(disp.daily_status[i]) - 1);
+            }
+
+            bsp_display_lock(100);
+            weather_display_update(&disp);
+            bsp_display_unlock();
+
+            ESP_LOGI(TAG, "UI updated: %.1f°F %s", disp.current_temp_f, disp.city);
+        }
+
+        // Update network status icon every loop
+        bsp_display_lock(100);
+        weather_display_update_network(wifi_manager_is_connected());
+        bsp_display_unlock();
+    }
 }

@@ -53,7 +53,7 @@ typedef struct {
     bool    is_night;              // true after sunset
     bool    wifi_connected;
     char    time_str[10];          // e.g. "2:34 PM"
-} weather_data_t;
+} weather_display_t;
 
 /* ── Display update functions ───────────────────────────────────────── */
 
@@ -61,7 +61,7 @@ typedef struct {
  * Update all home screen widgets from weather data.
  * Must be called while holding bsp_display_lock.
  */
-void weather_display_update(const weather_data_t *w);
+void weather_display_update(const weather_display_t *w);
 
 /**
  * Update only the time label (call every minute).
