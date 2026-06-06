@@ -45,10 +45,17 @@
  *  the only file you'll need to change.
  **************************************************************************************/
 
-//#include "hlxclib/stdlib.h"		/* for malloc, free */ 
+//#include "hlxclib/stdlib.h"		/* for malloc, free */
 #include <stdlib.h>
 #include <string.h>
 #include "coder.h"
+#include "esp_heap_caps.h"  /* heap_caps_malloc — pin decoder state to internal RAM */
+
+/* Decoder state MUST live in internal RAM — crashes if any struct lands in PSRAM.
+ * PSRAM cache-miss thrashing on these hot buffers also causes ~5fps drop and
+ * touch delay during playback. All allocs use MALLOC_CAP_INTERNAL. */
+#define DECODER_MALLOC(sz) heap_caps_malloc((sz), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+#define DECODER_FREE(p)    free(p)
 
 /**************************************************************************************
  * Function:    ClearBuffer
@@ -102,18 +109,18 @@ MP3DecInfo *AllocateBuffers(void)
 	IMDCTInfo *mi;
 	SubbandInfo *sbi;
 
-	mp3DecInfo = (MP3DecInfo *)malloc(sizeof(MP3DecInfo));
+	mp3DecInfo = (MP3DecInfo *)DECODER_MALLOC(sizeof(MP3DecInfo));
 	if (!mp3DecInfo)
 		return 0;
 	ClearBuffer(mp3DecInfo, sizeof(MP3DecInfo));
-	
-	fh =  (FrameHeader *)     malloc(sizeof(FrameHeader));
-	si =  (SideInfo *)        malloc(sizeof(SideInfo));
-	sfi = (ScaleFactorInfo *) malloc(sizeof(ScaleFactorInfo));
-	hi =  (HuffmanInfo *)     malloc(sizeof(HuffmanInfo));
-	di =  (DequantInfo *)     malloc(sizeof(DequantInfo));
-	mi =  (IMDCTInfo *)       malloc(sizeof(IMDCTInfo));
-	sbi = (SubbandInfo *)     malloc(sizeof(SubbandInfo));
+
+	fh =  (FrameHeader *)     DECODER_MALLOC(sizeof(FrameHeader));
+	si =  (SideInfo *)        DECODER_MALLOC(sizeof(SideInfo));
+	sfi = (ScaleFactorInfo *) DECODER_MALLOC(sizeof(ScaleFactorInfo));
+	hi =  (HuffmanInfo *)     DECODER_MALLOC(sizeof(HuffmanInfo));
+	di =  (DequantInfo *)     DECODER_MALLOC(sizeof(DequantInfo));
+	mi =  (IMDCTInfo *)       DECODER_MALLOC(sizeof(IMDCTInfo));
+	sbi = (SubbandInfo *)     DECODER_MALLOC(sizeof(SubbandInfo));
 
 	mp3DecInfo->FrameHeaderPS =     (void *)fh;
 	mp3DecInfo->SideInfoPS =        (void *)si;
@@ -140,7 +147,7 @@ MP3DecInfo *AllocateBuffers(void)
 	return mp3DecInfo;
 }
 
-#define SAFE_FREE(x)	{if (x)	free(x);	(x) = 0;}	/* helper macro */
+#define SAFE_FREE(x)	{if (x)	DECODER_FREE(x);	(x) = 0;}	/* helper macro */
 
 /**************************************************************************************
  * Function:    FreeBuffers

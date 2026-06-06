@@ -46,7 +46,7 @@ static const char *TAG = "DeskMediaDevice";
 #define AUDIO_SAMPLE_RATE       32000  // matches re-encoded MP3s; mp3_task reconfigures per-file
 
 // ── Tuning knobs — easy to flip for testing ──────────────────────────────────
-#define TICK_TASK_PRIORITY      4   // button click sound — try 4, 5, or 6
+#define TICK_TASK_PRIORITY      4   // button click sound
 #define MP3_TASK_PRIORITY       5   // below LVGL (6) so LVGL always wins touch scheduling
 #define SCROLL_TIMER_MS         67  // title scroll interval — 67=15fps, 50=20fps, 40=25fps
 #define SCROLL_STEP_PX          3   // pixels per scroll tick
@@ -412,13 +412,15 @@ static void tick_task(void *arg)
 {
     (void)arg;
     if (spk_codec_dev == NULL) { vTaskDelete(NULL); return; }
+    // Skip tick during MP3 playback — codec is owned by mp3_task, write would block/corrupt
+    if (mp3_is_playing) { vTaskDelete(NULL); return; }
 
-    // Generate a short 880Hz sine burst (20ms @ 16kHz = 320 samples)
-    const int SAMPLES = 320;
+    // Generate a short 880Hz sine burst (20ms @ 32kHz = 640 samples)
+    const int SAMPLES = 640;
     int16_t buf[SAMPLES * 2]; // stereo
     for (int i = 0; i < SAMPLES; i++) {
-        float t = (float)i / 16000.0f;
-        float env = (i < 80) ? (float)i / 80.0f : (float)(SAMPLES - i) / (float)(SAMPLES - 80);
+        float t = (float)i / (float)AUDIO_SAMPLE_RATE;
+        float env = (i < 160) ? (float)i / 160.0f : (float)(SAMPLES - i) / (float)(SAMPLES - 160);
         int16_t s = (int16_t)(env * 8000.0f * sinf(2.0f * 3.14159f * 880.0f * t));
         buf[i * 2]     = s;
         buf[i * 2 + 1] = s;
@@ -501,11 +503,9 @@ static void mp3_task(void *arg)
     // ── Pop/click suppression — PA gate ──────────────────────────────────────
     // Mute/volume/silence-flush approaches all failed in previous attempts:
     // the ES8311 digital controls don't reach the analog output fast enough.
-    // Direct PA GPIO control is the only path that reliably suppresses the pop:
-    //   1. Kill the PA (GPIO 53 low) so the speaker hears nothing
-    //   2. Write silence into the DMA to drain any stale samples
-    //   3. Decode and queue the first real frame (codec output is now clean)
-    //   4. Re-enable the PA — speaker comes up into clean audio, no transient
+    // Direct PA GPIO control is the only path that reliably suppresses the pop.
+    // MP3 files must have ~0.5s silence at the start (added via FFmpeg) so the
+    // PA comes up into guaranteed silence before any real audio hits the speaker.
     gpio_set_level(BSP_POWER_AMP_IO, 0);
     {
         int16_t silence[MP3_PCM_BUF_FRAMES * 2];
@@ -554,7 +554,7 @@ static void mp3_task(void *arg)
 
         if (!pa_enabled) {
             pa_enabled = true;
-            gpio_set_level(BSP_POWER_AMP_IO, 1); // PA on — first real frame is already queued
+            gpio_set_level(BSP_POWER_AMP_IO, 1); // PA on — file has leading silence, no transient
         }
 
         int samples = info.outputSamps; // total shorts (channels * frames)
@@ -562,8 +562,9 @@ static void mp3_task(void *arg)
         taskYIELD(); // priority 5 — explicitly yields to LVGL at 6
     }
 
-    if (!pa_enabled) {
-        gpio_set_level(BSP_POWER_AMP_IO, 1); // restore PA if track was stopped before first frame
+    // PA restore on natural EOF only — mp3_stop() already lowered it for stop/skip.
+    if (!mp3_stop_requested) {
+        gpio_set_level(BSP_POWER_AMP_IO, 1);
     }
 
     free(read_buf);
@@ -629,7 +630,6 @@ static void anim_x_cb(void *obj, int32_t x)
 // ── Open/close music player panel ────────────────────────────────────────────
 static void music_player_toggle(void)
 {
-    audio_play_tick();
     music_player_open = !music_player_open;
 
 
@@ -762,6 +762,9 @@ static void music_update_display(void)
 static void mp3_stop(void)
 {
     if (mp3_is_playing) {
+        // Kill PA first so there's no pop when the task drains and exits.
+        // The next mp3_task will bring it back up after its silence flush.
+        gpio_set_level(BSP_POWER_AMP_IO, 0);
         mp3_stop_requested = true;
         for (int i = 0; i < 50 && mp3_is_playing; i++) {
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -808,7 +811,6 @@ static void music_buttonplay_cb(lv_event_t *e)
 {
     (void)e;
     if (mp3_track_count == 0) return;
-    audio_play_tick();
     if (mp3_is_playing) {
         mp3_stop();
         lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
@@ -827,7 +829,6 @@ static void music_buttonup_cb(lv_event_t *e)
 {
     (void)e;
     if (mp3_track_count == 0) return;
-    audio_play_tick();
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track - 1 + mp3_track_count) % mp3_track_count;
@@ -846,7 +847,6 @@ static void music_buttondown_cb(lv_event_t *e)
 {
     (void)e;
     if (mp3_track_count == 0) return;
-    audio_play_tick();
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track + 1) % mp3_track_count;
@@ -916,6 +916,21 @@ static void create_ui(void)
     lv_obj_add_event_cb(GUI_Button__home__buttonup,        music_buttonup_cb,    LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(GUI_Button__home__buttondown,      music_buttondown_cb,  LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(GUI_Button__home__musicbuttongrey, music_player_btn_cb,  LV_EVENT_CLICKED, NULL);
+
+    // ── Button press visual feedback — red overlay on LV_STATE_PRESSED ────────
+    // LVGL applies this automatically on finger-down, removes on finger-up.
+    // Replaces the audio tick which can't play during MP3 playback.
+    lv_obj_t *music_btns[] = {
+        GUI_Button__home__buttonplay,
+        GUI_Button__home__buttonup,
+        GUI_Button__home__buttondown,
+        GUI_Button__home__musicbuttongrey,
+    };
+    for (int i = 0; i < 4; i++) {
+        lv_obj_set_style_bg_color(music_btns[i], lv_color_hex(0xFF2200), LV_STATE_PRESSED | LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(music_btns[i],   LV_OPA_40,              LV_STATE_PRESSED | LV_PART_MAIN);
+        lv_obj_set_style_radius(music_btns[i],   8,                      LV_STATE_PRESSED | LV_PART_MAIN);
+    }
 
     lv_obj_set_y(GUI_Container__home__music_player, MUSIC_PLAYER_Y_HIDDEN);
     lv_obj_set_x(GUI_Container__home__musicbuttoncont, MUSICBTN_X_REST);

@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "lvgl_demo_v9",
-    "project_version":    "b09ceaf-dirty",
+    "project_version":    "13bd7e0-dirty",
     "project_path":       "C:/Users/Administrator/Documents/DeskMediaDeviceV2",
     "idf_path":           "C:/esp/v5.5.4/esp-idf",
     "build_dir":          "C:/Users/Administrator/Documents/DeskMediaDeviceV2/build",
