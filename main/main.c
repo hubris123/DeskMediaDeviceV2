@@ -130,6 +130,17 @@ static int32_t scroll_unit_w = 0;
 static void scan_sd_card(void);
 static void create_ui(void);
 static esp_err_t i2s_init(void);
+
+// ── Video player ──────────────────────────────────────────────────────────────
+#include "video_player.h"
+lv_display_t *g_lv_disp = NULL;
+
+static void skull_touch_cb(lv_event_t *e)
+{
+    (void)e;
+    ESP_LOGI(TAG, "Skull logo touched — starting video player");
+    video_player_start();
+}
 static esp_err_t codec_init(void);
 static void audio_task(void *param);
 static void mp3_stop(void);
@@ -628,6 +639,25 @@ static void mp3_stop(void)
     }
 }
 
+// ── Video player MP3 bridge ───────────────────────────────────────────────────
+void video_mp3_play(const char *path)
+{
+    mp3_stop();
+    if (spk_codec_dev == NULL) return;
+    mp3_stop_requested = false;
+    mp3_is_playing = true;
+    mp3_play_args_t *args = malloc(sizeof(mp3_play_args_t));
+    if (!args) { mp3_is_playing = false; return; }
+    strncpy(args->path, path, sizeof(args->path) - 1);
+    args->path[sizeof(args->path) - 1] = ' ';
+    xTaskCreate(mp3_task, "vid_mp3", 8192, args, 4, &mp3_task_handle);
+}
+
+void video_mp3_stop(void)
+{
+    mp3_stop();
+}
+
 // ── Start playing current track ───────────────────────────────────────────────
 static void mp3_play_current(void)
 {
@@ -788,6 +818,18 @@ static void create_ui(void)
     lv_timer_create(music_watchdog_cb, 500, NULL);
     lv_timer_create(clock_timer_cb, 1000, NULL);
     music_update_display();
+
+    // ── Skull logo touch target (transparent, covers logo area) ──────────────
+    lv_obj_t *skull_touch = lv_obj_create(GUI_Screen__home);
+    lv_obj_set_pos(skull_touch, 310, 40);
+    lv_obj_set_size(skull_touch, 340, 310);
+    lv_obj_set_style_bg_opa(skull_touch, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(skull_touch, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(skull_touch, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(skull_touch, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(skull_touch, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_foreground(skull_touch);  // ensure nothing is on top of it
+    lv_obj_add_event_cb(skull_touch, skull_touch_cb, LV_EVENT_CLICKED, NULL);
 }
 
 void app_main(void)
@@ -828,7 +870,7 @@ void app_main(void)
         .touch_flags = { .swap_xy = 1, .mirror_x = 1, .mirror_y = 0 }
     };
 
-    bsp_display_start_with_config(&cfg);
+    g_lv_disp = bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 
     bsp_display_lock(-1);
@@ -859,6 +901,7 @@ void app_main(void)
     weather_set_location(saved_zip);
 
     ESP_LOGI(TAG, "Initialization complete");
+    video_player_init();
 
     weather_data_t api_data = {0};
     uint32_t last_displayed_update = 0;

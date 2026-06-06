@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "lvgl_demo_v9",
-    "project_version":    "872379b-dirty",
+    "project_version":    "2455246-dirty",
     "project_path":       "C:/Users/Administrator/Documents/DeskMediaDeviceV2",
     "idf_path":           "C:/esp/v5.5.4/esp-idf",
     "build_dir":          "C:/Users/Administrator/Documents/DeskMediaDeviceV2/build",
@@ -1625,12 +1625,12 @@
             "dir": "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main",
             "type": "LIBRARY",
             "lib": "__idf_main",
-            "reqs": [ "squareline_ui", "esp_http_client", "espressif__cjson", "nvs_flash", "freertos", "driver", "bsp_extra", "esp32_p4_wifi6_touch_lcd_4_3", "espressif__esp_codec_dev", "lvgl__lvgl", "chmorgan__esp-libhelix-mp3", "espressif__esp_wifi_remote", "esp_wifi", "esp_event", "esp_netif", "lwip", "mbedtls" ],
+            "reqs": [ "squareline_ui", "esp_http_client", "espressif__cjson", "nvs_flash", "freertos", "driver", "bsp_extra", "esp32_p4_wifi6_touch_lcd_4_3", "espressif__esp_codec_dev", "espressif__esp_lvgl_adapter", "esp_driver_jpeg", "esp_lcd", "esp_mm", "lvgl__lvgl", "chmorgan__esp-libhelix-mp3", "espressif__esp_wifi_remote", "esp_wifi", "esp_event", "esp_netif", "lwip", "mbedtls" ],
             "priv_reqs": [ "espressif__cjson", "espressif__esp_hosted", "espressif__esp_wifi_remote" ],
             "managed_reqs": [ "lvgl__lvgl" ],
             "managed_priv_reqs": [ "espressif__cjson", "espressif__esp_hosted", "espressif__esp_wifi_remote" ],
             "file": "C:/Users/Administrator/Documents/DeskMediaDeviceV2/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/main.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_data.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_api.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_task.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/wmo_icon_map.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/storage/nvs_storage.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/data_binding.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/settings.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/network_selector.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/wifi_manager.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather_icons.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather_display.c" ],
+            "sources": [ "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/main.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/video_player.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_data.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_api.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/weather_task.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather/wmo_icon_map.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/storage/nvs_storage.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/data_binding.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/settings.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/ui/network_selector.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/wifi_manager.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather_icons.c", "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main/weather_display.c" ],
             "include_dirs": [ ".", "weather", "storage", "ui" ]
         },
         "mbedtls": {
@@ -3324,7 +3324,7 @@
             "prefix": "idf",
             "dir": "C:/Users/Administrator/Documents/DeskMediaDeviceV2/main",
             "lib": "__idf_main",
-            "reqs": [ "squareline_ui", "esp_http_client", "espressif__cjson", "nvs_flash", "freertos", "driver", "bsp_extra", "esp32_p4_wifi6_touch_lcd_4_3", "espressif__esp_codec_dev", "lvgl__lvgl", "chmorgan__esp-libhelix-mp3", "espressif__esp_wifi_remote", "esp_wifi", "esp_event", "esp_netif", "lwip", "mbedtls" ],
+            "reqs": [ "squareline_ui", "esp_http_client", "espressif__cjson", "nvs_flash", "freertos", "driver", "bsp_extra", "esp32_p4_wifi6_touch_lcd_4_3", "espressif__esp_codec_dev", "espressif__esp_lvgl_adapter", "esp_driver_jpeg", "esp_lcd", "esp_mm", "lvgl__lvgl", "chmorgan__esp-libhelix-mp3", "espressif__esp_wifi_remote", "esp_wifi", "esp_event", "esp_netif", "lwip", "mbedtls" ],
             "priv_reqs": [ "espressif__cjson", "espressif__esp_hosted", "espressif__esp_wifi_remote" ],
             "managed_reqs": [ "lvgl__lvgl" ],
             "managed_priv_reqs": [ "espressif__cjson", "espressif__esp_hosted", "espressif__esp_wifi_remote" ],

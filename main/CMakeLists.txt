@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         main.c
+        video_player.c
         weather/weather_data.c
         weather/weather_api.c
         weather/weather_task.c
@@ -27,6 +28,10 @@ idf_component_register(
         bsp_extra
         esp32_p4_wifi6_touch_lcd_4_3
         esp_codec_dev
+        esp_lvgl_adapter
+        esp_driver_jpeg
+        esp_lcd
+        esp_mm
         lvgl
         chmorgan__esp-libhelix-mp3
         esp_wifi_remote
