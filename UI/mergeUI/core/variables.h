@@ -87,6 +87,7 @@ extern lv_obj_t *GUI_Container__home__musicbuttoncont;
 extern lv_obj_t *GUI_Panel__home__musicbuttonpanel;
 extern lv_obj_t *GUI_Button__home__musicbuttongrey;
 extern lv_obj_t *GUI_Image__home__musicbtn;
+extern lv_obj_t *GUI_Panel__home__statusbar;
 
 extern lv_obj_t *GUI_Screen__keyboardpassword;
 extern lv_obj_t *GUI_Container__keyboardpassword__container;

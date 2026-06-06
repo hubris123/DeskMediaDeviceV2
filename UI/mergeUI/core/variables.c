@@ -80,6 +80,7 @@ lv_obj_t *GUI_Container__home__musicbuttoncont;
 lv_obj_t *GUI_Panel__home__musicbuttonpanel;
 lv_obj_t *GUI_Button__home__musicbuttongrey;
 lv_obj_t *GUI_Image__home__musicbtn;
+lv_obj_t *GUI_Panel__home__statusbar;
 
 lv_obj_t *GUI_Screen__keyboardpassword;
 lv_obj_t *GUI_Container__keyboardpassword__container;
@@ -245,6 +246,7 @@ lv_style_t GUI_Style__class_QumCJvXClgKqXt__;
 lv_style_t GUI_Style__class_9NSNgaDRtTcYTS__;
 lv_style_t GUI_Style__class_Eh5lp5suTww3t9__;
 lv_style_t GUI_Style__class_341wNmAsuFcHIa__;
+lv_style_t GUI_Style__class_RNPvrLAE8rHsum__;
 lv_style_t GUI_Style__class_AvvcYB4wlpzNqr__;
 lv_style_t GUI_Style__class_iwIHCP82XdjJdR__;
 lv_style_t GUI_Style__class_3D1LJzVb3VpFXw__;

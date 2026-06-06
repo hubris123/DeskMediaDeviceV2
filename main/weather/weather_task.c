@@ -26,6 +26,7 @@ typedef struct {
 } weather_task_state_t;
 
 static weather_task_state_t g_state = {0};
+static volatile bool s_fetching = false;
 
 /**
  * Commands for the task
@@ -116,7 +117,9 @@ static void weather_task_main(void *param)
 
         // Fetch weather
         weather_data_t temp_data = {0};
+        s_fetching = true;
         esp_err_t err = weather_fetch_current(&g_state.location, &temp_data);
+        s_fetching = false;
 
         if (err == ESP_OK) {
             // Update shared data with mutex
@@ -180,7 +183,7 @@ esp_err_t weather_task_start(void)
                                 "weather_task",
                                 8192,  // 8KB stack — needed for HTTPS SSL
                                 NULL,
-                                3,     // Low priority
+                                2,     // Background priority — must not compete with audio
                                 &g_state.task_handle);
 
     if (ret != pdPASS) {
@@ -283,4 +286,9 @@ void weather_set_update_interval(uint32_t minutes)
 uint32_t weather_get_last_update(void)
 {
     return g_state.last_update;
+}
+
+bool weather_task_is_fetching(void)
+{
+    return s_fetching;
 }

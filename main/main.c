@@ -35,9 +35,24 @@
 #include "weather_display.h"
 #include "weather_icons.h"
 
+// ── WiFi disconnect reason codes ─────────────────────────────────────────────
+#define WIFI_REASON_INTENTIONAL     8
+#define WIFI_REASON_ASSOC_LEAVE     15
+#define WIFI_REASON_AUTH_FAIL       202
+#define WIFI_REASON_NO_AP_FOUND     205
+
 static const char *TAG = "DeskMediaDevice";
 
-#define AUDIO_SAMPLE_RATE       44100  // default; mp3_task reconfigures per-file
+#define AUDIO_SAMPLE_RATE       32000  // matches re-encoded MP3s; mp3_task reconfigures per-file
+
+// ── Tuning knobs — easy to flip for testing ──────────────────────────────────
+#define TICK_TASK_PRIORITY      4   // button click sound — try 4, 5, or 6
+#define MP3_TASK_PRIORITY       5   // below LVGL (6) so LVGL always wins touch scheduling
+#define SCROLL_TIMER_MS         67  // title scroll interval — 67=15fps, 50=20fps, 40=25fps
+#define SCROLL_STEP_PX          3   // pixels per scroll tick
+// NOTE: CONFIG_LV_DEF_REFR_PERIOD in sdkconfig left at 15 — raising it hurts touch responsiveness
+#define STATUS_BAR_SLIDE_IN_MS  500  // slide down into view — slower feels more intentional
+#define STATUS_BAR_SLIDE_OUT_MS 300  // slide up out of view — quicker, just getting out of the way
 #define AUDIO_MCLK_MULTIPLE     384
 #define AUDIO_MCLK_FREQ_HZ      (AUDIO_SAMPLE_RATE * AUDIO_MCLK_MULTIPLE)
 #define AUDIO_BUFFER_SIZE       512
@@ -50,21 +65,7 @@ static char wav_file_path[256] = "";
 static bool is_playing = false;
 static TaskHandle_t audio_task_handle = NULL;
 static esp_codec_dev_handle_t spk_codec_dev = NULL;
-static int codec_current_sample_rate = AUDIO_SAMPLE_RATE;
-
-static void codec_set_sample_rate(int rate)
-{
-    if (rate == codec_current_sample_rate) return;
-    esp_codec_dev_sample_info_t fs = {
-        .sample_rate     = rate,
-        .channel         = 2,
-        .bits_per_sample = 16,
-    };
-    esp_codec_dev_close(spk_codec_dev);
-    esp_codec_dev_open(spk_codec_dev, &fs);
-    codec_current_sample_rate = rate;
-    ESP_LOGI("MP3", "Codec reconfigured to %d Hz", rate);
-}
+// Codec is fixed at AUDIO_SAMPLE_RATE (32000Hz) — all MP3s must be encoded at this rate
 
 // ── MP3 playlist ──────────────────────────────────────────────────────────────
 #define MP3_MAX_TRACKS 32
@@ -79,6 +80,10 @@ static TaskHandle_t  mp3_task_handle    = NULL;
 // ── UTC offset from last weather fetch (for time display) ────────────────────
 static int32_t g_utc_offset_seconds = 0;
 
+// ── Weather status overlay ────────────────────────────────────────────────────
+static lv_obj_t *s_weather_overlay     = NULL;
+static lv_obj_t *s_weather_overlay_lbl = NULL;
+
 // ── Memory display label ──────────────────────────────────────────────────────
 static lv_obj_t *mem_label = NULL;
 
@@ -86,6 +91,7 @@ static void mem_label_cb(lv_timer_t *t)
 {
     (void)t;
     if (!mem_label) return;
+    if (lv_scr_act() != GUI_Screen__home) return;
     size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     size_t free_psram    = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     lv_label_set_text_fmt(mem_label, "INT:%uK PSRAM:%uK",
@@ -97,8 +103,10 @@ static void mem_label_cb(lv_timer_t *t)
 static void clock_timer_cb(lv_timer_t *t)
 {
     (void)t;
+    if (lv_scr_act() != GUI_Screen__home) return;
     time_t now = time(NULL);
-    if (now < 1700000000) return; // SNTP not synced yet
+    if (now < 1700000000) return;         // SNTP not synced yet
+    if (g_utc_offset_seconds == 0) return; // UTC offset not yet set by weather API
     time_t local = now + g_utc_offset_seconds;
     struct tm *tm_info = gmtime(&local);
     if (!tm_info) return;
@@ -106,6 +114,109 @@ static void clock_timer_cb(lv_timer_t *t)
     strftime(tmp, sizeof(tmp), "%I:%M%p", tm_info);
     const char *ts = (tmp[0] == '0') ? tmp + 1 : tmp;
     lv_label_set_text(GUI_Label__home__CURRENTTIMEQ, ts);
+}
+
+// Forward declaration — anim_y_cb defined later in file
+static void anim_y_cb(void *obj, int32_t y);
+
+// ── Status bar animation complete — hide after slide-up ──────────────────────
+static void status_bar_hide_cb(lv_anim_t *a)
+{
+    lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN);
+}
+
+// ── Weather status overlay timer (500ms) ─────────────────────────────────────
+// Logic:
+//   - No overlay if WiFi connected AND weather data is valid (happy path)
+//   - "LOADING WEATHER DATA"        — WiFi up, fetch in progress
+//   - "WIFI REQUIRED FOR WEATHER DATA" — not connected, never had data, no error
+//   - "WRONG PASSWORD"              — disconnected with reason 15 or 202
+//   - "NETWORK NOT FOUND"           — disconnected with reason 205
+//   - "WIFI CONNECTION FAILED"      — max retries, other reason
+static void weather_overlay_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (!s_weather_overlay) return;
+    if (lv_scr_act() != GUI_Screen__home) return;
+
+    bool connected   = wifi_manager_is_connected();
+    bool connecting  = wifi_manager_is_connecting();
+    bool fetching    = weather_task_is_fetching();
+    bool data_valid  = (weather_get_last_update() > 0);
+    uint8_t reason   = wifi_manager_get_last_disconnect_reason();
+
+    const char *msg  = NULL;
+
+    if (connected && data_valid && !fetching) {
+        // All good — hide overlay
+    } else if (connected && (fetching || !data_valid)) {
+        msg = "LOADING WEATHER DATA";
+    } else if (connecting) {
+        // Active attempt in progress — always show this, overrides any stale error
+        msg = "CONNECTING TO WIFI...";
+    } else if (!connected) {
+        if (reason == WIFI_REASON_ASSOC_LEAVE || reason == WIFI_REASON_AUTH_FAIL) {
+            msg = "WRONG PASSWORD";
+        } else if (reason == WIFI_REASON_NO_AP_FOUND) {
+            msg = "NETWORK NOT FOUND";
+        } else if (reason != 0 && reason != WIFI_REASON_INTENTIONAL) {
+            msg = "WIFI CONNECTION FAILED";
+        } else {
+            msg = "WIFI REQUIRED FOR WEATHER DATA";
+        }
+    }
+
+    // Only touch LVGL if the message actually changed
+    static const char *s_last_msg = NULL;
+    if (msg == s_last_msg) return;
+    s_last_msg = msg;
+
+    if (msg == NULL) {
+        // Slide up off screen then hide
+        lv_obj_clear_flag(s_weather_overlay, LV_OBJ_FLAG_HIDDEN);
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, s_weather_overlay);
+        lv_anim_set_exec_cb(&a, anim_y_cb);
+        lv_anim_set_values(&a, -221, -266);
+        lv_anim_set_duration(&a, STATUS_BAR_SLIDE_OUT_MS);
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+        lv_anim_set_completed_cb(&a, status_bar_hide_cb);
+        lv_anim_start(&a);
+    } else {
+        // Background and text color by message type
+        lv_color_t bg_color;
+        lv_color_t txt_color;
+        if (reason == WIFI_REASON_ASSOC_LEAVE || reason == WIFI_REASON_AUTH_FAIL ||
+            reason == WIFI_REASON_NO_AP_FOUND ||
+            (reason != 0 && reason != WIFI_REASON_INTENTIONAL && !connected && !connecting)) {
+            // Error states — red background, black text
+            bg_color  = lv_color_hex(0xCC2222);
+            txt_color = lv_color_hex(0x000000);
+        } else if (!connected && !connecting) {
+            // No WiFi, no error yet — orange warning, black text
+            bg_color  = lv_color_hex(0xCC6600);
+            txt_color = lv_color_hex(0x000000);
+        } else {
+            // Connecting or loading — dark gray, white text
+            bg_color  = lv_color_hex(0x222222);
+            txt_color = lv_color_hex(0xFFFFFF);
+        }
+        lv_obj_set_style_bg_color(s_weather_overlay, bg_color, 0);
+        lv_obj_set_style_text_color(s_weather_overlay_lbl, txt_color, 0);
+        lv_label_set_text(s_weather_overlay_lbl, msg);
+        lv_obj_clear_flag(s_weather_overlay, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(s_weather_overlay);
+        // Slide down into view from parked position
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, s_weather_overlay);
+        lv_anim_set_exec_cb(&a, anim_y_cb);
+        lv_anim_set_values(&a, -266, -221);
+        lv_anim_set_duration(&a, STATUS_BAR_SLIDE_IN_MS);
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+        lv_anim_start(&a);
+    }
 }
 
 // ── Music player slide state ──────────────────────────────────────────────────
@@ -318,7 +429,7 @@ static void tick_task(void *arg)
 
 void audio_play_tick(void)
 {
-    xTaskCreate(tick_task, "tick", 4096, NULL, 6, NULL);
+    xTaskCreate(tick_task, "tick", 4096, NULL, TICK_TASK_PRIORITY, NULL);
 }
 
 void audio_set_volume(int percent)
@@ -387,9 +498,25 @@ static void mp3_task(void *arg)
         MP3FreeDecoder(decoder); fclose(f); mp3_is_playing = false; vTaskDelete(NULL); return;
     }
 
+    // ── Pop/click suppression — PA gate ──────────────────────────────────────
+    // Mute/volume/silence-flush approaches all failed in previous attempts:
+    // the ES8311 digital controls don't reach the analog output fast enough.
+    // Direct PA GPIO control is the only path that reliably suppresses the pop:
+    //   1. Kill the PA (GPIO 53 low) so the speaker hears nothing
+    //   2. Write silence into the DMA to drain any stale samples
+    //   3. Decode and queue the first real frame (codec output is now clean)
+    //   4. Re-enable the PA — speaker comes up into clean audio, no transient
+    gpio_set_level(BSP_POWER_AMP_IO, 0);
+    {
+        int16_t silence[MP3_PCM_BUF_FRAMES * 2];
+        memset(silence, 0, sizeof(silence));
+        esp_codec_dev_write(spk_codec_dev, silence, sizeof(silence));
+        esp_codec_dev_write(spk_codec_dev, silence, sizeof(silence));
+    }
+
     int bytes_in_buf = 0;
     uint8_t *read_ptr = read_buf;
-    bool sample_rate_set = false;
+    bool pa_enabled = false;
 
     while (!mp3_stop_requested) {
         // Refill buffer from SD
@@ -425,14 +552,18 @@ static void mp3_task(void *arg)
         MP3FrameInfo info;
         MP3GetLastFrameInfo(decoder, &info);
 
-        // On first good frame, reconfigure codec to match file's sample rate and channels
-        if (!sample_rate_set && info.samprate > 0) {
-            codec_set_sample_rate(info.samprate);
-            sample_rate_set = true;
+        if (!pa_enabled) {
+            pa_enabled = true;
+            gpio_set_level(BSP_POWER_AMP_IO, 1); // PA on — first real frame is already queued
         }
 
         int samples = info.outputSamps; // total shorts (channels * frames)
         esp_codec_dev_write(spk_codec_dev, pcm_buf, samples * sizeof(short));
+        taskYIELD(); // priority 5 — explicitly yields to LVGL at 6
+    }
+
+    if (!pa_enabled) {
+        gpio_set_level(BSP_POWER_AMP_IO, 1); // restore PA if track was stopped before first frame
     }
 
     free(read_buf);
@@ -545,12 +676,12 @@ static void music_player_btn_cb(lv_event_t *e)
     music_player_toggle();
 }
 
-// ── Scroll timer: advances label x by 2px every 25ms (~80px/s) ───────────────
+// ── Scroll timer — rate controlled by SCROLL_TIMER_MS / SCROLL_STEP_PX ───────
 static void scroll_tick_cb(lv_timer_t *t)
 {
     (void)t;
     if (!music_scroll_active || scroll_unit_w == 0) return;
-    scroll_x -= 2;
+    scroll_x -= SCROLL_STEP_PX;
     if (scroll_x <= -scroll_unit_w) scroll_x += scroll_unit_w;
     lv_obj_set_x(GUI_Label__home__musicscrolllabel, scroll_x);
 }
@@ -578,7 +709,7 @@ static void music_scroll_start(const char *title)
 
     // Start timer if not already running
     if (!scroll_timer) {
-        scroll_timer = lv_timer_create(scroll_tick_cb, 25, NULL);
+        scroll_timer = lv_timer_create(scroll_tick_cb, SCROLL_TIMER_MS, NULL);
     } else {
         lv_timer_resume(scroll_timer);
     }
@@ -650,7 +781,7 @@ void video_mp3_play(const char *path)
     if (!args) { mp3_is_playing = false; return; }
     strncpy(args->path, path, sizeof(args->path) - 1);
     args->path[sizeof(args->path) - 1] = ' ';
-    xTaskCreate(mp3_task, "vid_mp3", 8192, args, 4, &mp3_task_handle);
+    xTaskCreate(mp3_task, "vid_mp3", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle);
 }
 
 void video_mp3_stop(void)
@@ -668,7 +799,7 @@ static void mp3_play_current(void)
     if (!args) { mp3_is_playing = false; return; }
     strncpy(args->path, mp3_playlist[mp3_current_track], sizeof(args->path) - 1);
     args->path[sizeof(args->path) - 1] = '\0';
-    xTaskCreate(mp3_task, "mp3_play", 8192, args, 5, &mp3_task_handle);
+    xTaskCreate(mp3_task, "mp3_play", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle);
     ESP_LOGI(TAG, "Playing track %d: %s", mp3_current_track, args->path);
 }
 
@@ -737,7 +868,7 @@ void audio_play_mp3(const char *path)
     if (!args) return;
     strncpy(args->path, path, sizeof(args->path) - 1);
     args->path[sizeof(args->path)-1] = '\0';
-    xTaskCreate(mp3_task, "mp3_play", 8192, args, 5, NULL);
+    xTaskCreate(mp3_task, "mp3_play", 8192, args, MP3_TASK_PRIORITY, NULL);
 }
 
 // ── Periodic timer: detect when MP3 finishes naturally ───────────────────────
@@ -746,6 +877,7 @@ static bool mp3_was_playing = false;
 static void music_watchdog_cb(lv_timer_t *t)
 {
     (void)t;
+    if (lv_scr_act() != GUI_Screen__home) return;
     if (mp3_was_playing && !mp3_is_playing) {
         lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
         if (music_scroll_active) {
@@ -830,6 +962,30 @@ static void create_ui(void)
     lv_obj_add_flag(skull_touch, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_move_foreground(skull_touch);  // ensure nothing is on top of it
     lv_obj_add_event_cb(skull_touch, skull_touch_cb, LV_EVENT_CLICKED, NULL);
+
+    // ── Weather status overlay — slim bar, top of screen right of weather panel
+    s_weather_overlay = lv_obj_create(GUI_Screen__home);
+    lv_obj_set_size(s_weather_overlay, 430, 40);
+    lv_obj_set_align(s_weather_overlay, LV_ALIGN_CENTER);
+    lv_obj_set_pos(s_weather_overlay, 81, -266); // parked above top edge
+    lv_obj_set_style_bg_color(s_weather_overlay, lv_color_hex(0x222222), 0);
+    lv_obj_set_style_bg_opa(s_weather_overlay, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_weather_overlay, 5, 0);
+    lv_obj_set_style_border_width(s_weather_overlay, 0, 0);
+    lv_obj_set_style_pad_all(s_weather_overlay, 0, 0);
+    lv_obj_clear_flag(s_weather_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_weather_overlay, LV_OBJ_FLAG_HIDDEN); // starts hidden
+
+    s_weather_overlay_lbl = lv_label_create(s_weather_overlay);
+    lv_label_set_text(s_weather_overlay_lbl, "");
+    lv_obj_set_style_text_color(s_weather_overlay_lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(s_weather_overlay_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_align(s_weather_overlay_lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(s_weather_overlay_lbl, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(s_weather_overlay_lbl, 430);
+    lv_obj_align(s_weather_overlay_lbl, LV_ALIGN_CENTER, 0, 0);
+
+    lv_timer_create(weather_overlay_cb, 500, NULL);
 }
 
 void app_main(void)

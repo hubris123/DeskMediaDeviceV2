@@ -21,7 +21,7 @@ void GUI_initScreen__home() {
   lv_label_set_long_mode(GUI_Label__home__musicscrolllabel, LV_LABEL_LONG_CLIP);
   lv_obj_set_align(GUI_Label__home__musicscrolllabel, LV_ALIGN_CENTER);
   lv_obj_set_y(GUI_Label__home__musicscrolllabel, 6);
-  lv_obj_set_size(GUI_Label__home__musicscrolllabel, 410, 20);
+  lv_obj_set_size(GUI_Label__home__musicscrolllabel, 406, 20);
 
   GUI_Container__home__weatherwidget = lv_obj_create(GUI_Screen__home);
   lv_obj_remove_style_all(GUI_Container__home__weatherwidget);
@@ -671,6 +671,12 @@ void GUI_initScreen__home() {
   lv_obj_set_align(GUI_Image__home__musicbtn, LV_ALIGN_CENTER);
   lv_obj_set_pos(GUI_Image__home__musicbtn, -8, -6);
   lv_obj_set_size(GUI_Image__home__musicbtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+
+  GUI_Panel__home__statusbar = lv_obj_create(GUI_Screen__home);
+  lv_obj_remove_flag(GUI_Panel__home__statusbar, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_align(GUI_Panel__home__statusbar, LV_ALIGN_CENTER);
+  lv_obj_set_pos(GUI_Panel__home__statusbar, 81, -221);
+  lv_obj_set_size(GUI_Panel__home__statusbar, 430, 40);
 
   GUI_initScreenStyles__home();
   GUI_initScreenTexts__home();
@@ -1522,4 +1528,29 @@ void GUI_initScreenStyles__home() {
   lv_obj_add_style(GUI_Image__home__musicbtn,
                    &GUI_Style__class_341wNmAsuFcHIa__,
                    LV_PART_MAIN | LV_STATE_DEFAULT);
+
+  lv_obj_add_style(GUI_Panel__home__statusbar,
+                   &GUI_Style__class_RNPvrLAE8rHsum__,
+                   LV_PART_MAIN | LV_STATE_DEFAULT);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_COLOR, _ui_theme_bg_color_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_OPA, _ui_theme_bg_opa_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_COLOR, _ui_theme_grad_color_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_OPA, _ui_theme_grad_opa_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_DIR, _ui_theme_grad_dir_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_MAIN_STOP, _ui_theme_main_stop_white);
+  ui_object_set_themeable_style_property(
+      GUI_Panel__home__statusbar, LV_PART_MAIN | LV_STATE_DEFAULT,
+      LV_STYLE_BG_GRAD_STOP, _ui_theme_grad_stop_white);
 }

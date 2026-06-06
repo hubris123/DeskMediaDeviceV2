@@ -61,4 +61,10 @@ void weather_set_update_interval(uint32_t minutes);
  */
 uint32_t weather_get_last_update(void);
 
+/**
+ * Returns true while the weather task is actively fetching from the API.
+ * Use this to drive "LOADING WEATHER DATA" overlay on the home screen.
+ */
+bool weather_task_is_fetching(void);
+
 #endif // WEATHER_TASK_H

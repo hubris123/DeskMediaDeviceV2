@@ -775,6 +775,12 @@ void GUI_initGlobalStyles() {
   lv_style_set_transform_scale_x(&GUI_Style__class_341wNmAsuFcHIa__, 400);
   lv_style_set_transform_scale_y(&GUI_Style__class_341wNmAsuFcHIa__, 400);
 
+  lv_style_init(&GUI_Style__class_RNPvrLAE8rHsum__);
+  lv_style_set_bg_color(&GUI_Style__class_RNPvrLAE8rHsum__,
+                        lv_color_make(255, 255, 255));
+  lv_style_set_bg_opa(&GUI_Style__class_RNPvrLAE8rHsum__, 255);
+  lv_style_set_radius(&GUI_Style__class_RNPvrLAE8rHsum__, 5);
+
   lv_style_init(&GUI_Style__class_AvvcYB4wlpzNqr__);
   lv_style_set_bg_color(&GUI_Style__class_AvvcYB4wlpzNqr__,
                         lv_color_make(95, 95, 95));

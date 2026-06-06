@@ -18,8 +18,10 @@ static const char *TAG = "WiFiManager";
 
 static EventGroupHandle_t s_wifi_event_group = NULL;
 static bool s_connected = false;
+static bool s_connecting = false;
 static int s_retry_count = 0;
 static char s_ip[16] = "0.0.0.0";
+static uint8_t s_last_disconnect_reason = 0;
 
 // ── SNTP ─────────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             s_connected = false;
             strcpy(s_ip, "0.0.0.0");
             wifi_event_sta_disconnected_t *disc = (wifi_event_sta_disconnected_t *)event_data;
+            s_last_disconnect_reason = disc->reason;
             ESP_LOGW(TAG, "WiFi disconnected, reason: %d", disc->reason);
             if (s_retry_count < MAX_RETRIES) {
                 s_retry_count++;
@@ -60,6 +63,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 esp_wifi_connect();
             } else {
                 ESP_LOGW(TAG, "Max retries reached, giving up");
+                s_connecting = false;
                 if (s_wifi_event_group)
                     xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
             }
@@ -69,6 +73,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         snprintf(s_ip, sizeof(s_ip), IPSTR, IP2STR(&event->ip_info.ip));
         ESP_LOGI(TAG, "Got IP: %s", s_ip);
         s_connected = true;
+        s_connecting = false;
         s_retry_count = 0;
         if (s_wifi_event_group)
             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -112,6 +117,8 @@ esp_err_t wifi_manager_connect(const char *ssid, const char *password)
 
     s_retry_count = 0;
     s_connected = false;
+    s_connecting = true;
+    s_last_disconnect_reason = 0;  // clear stale reason — new attempt starting
 
     // Disconnect first if already connected — required before switching networks
     esp_wifi_disconnect();
@@ -154,4 +161,14 @@ bool wifi_manager_is_connected(void)
 void wifi_manager_get_ip(char *buf, size_t len)
 {
     if (buf) strncpy(buf, s_ip, len - 1);
+}
+
+uint8_t wifi_manager_get_last_disconnect_reason(void)
+{
+    return s_last_disconnect_reason;
+}
+
+bool wifi_manager_is_connecting(void)
+{
+    return s_connecting;
 }

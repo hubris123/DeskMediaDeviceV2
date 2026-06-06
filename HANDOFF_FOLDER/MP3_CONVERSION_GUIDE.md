@@ -3,22 +3,24 @@
 ## Required Format
 | Setting | Value |
 |---------|-------|
-| Sample Rate | 22050 Hz |
-| Bitrate | 96 kbps |
+| Sample Rate | 32000 Hz |
+| Bitrate | 128 kbps |
 | Channels | Stereo |
 | Format | MP3 (CBR preferred) |
+
+**NOTE:** The codec is fixed at 32000Hz in firmware — all MP3s MUST be at this rate or they will play at wrong speed.
 
 ## FFmpeg Command
 
 Single file:
 ```
-ffmpeg -i "input.mp3" -ac 2 -ar 22050 -ab 96k -codec:a libmp3lame "output.mp3"
+ffmpeg -i "input.mp3" -ac 2 -ar 32000 -ab 128k -codec:a libmp3lame "output.mp3"
 ```
 
 Batch convert entire folder (PowerShell):
 ```powershell
 Get-ChildItem ".\source\*.mp3" | ForEach-Object {
-    ffmpeg -i $_.FullName -ac 2 -ar 22050 -ab 96k -codec:a libmp3lame ".\converted\$($_.Name)"
+    ffmpeg -i $_.FullName -ac 2 -ar 32000 -ab 128k -codec:a libmp3lame ".\converted\$($_.Name)"
 }
 ```
 

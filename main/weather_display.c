@@ -61,8 +61,7 @@ void weather_display_update(const weather_display_t *w)
         lv_label_set_text(wind_label, w->current_wind_str);
     }
 
-    /* Time */
-    lv_label_set_text(GUI_Label__home__CURRENTTIMEQ, w->time_str);
+    /* Time is owned by clock_timer_cb in main.c — do not set here */
 
     /* Network icon */
     weather_display_update_network(w->wifi_connected);

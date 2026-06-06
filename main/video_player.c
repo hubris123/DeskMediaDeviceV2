@@ -9,7 +9,7 @@
  *
  * Video encoding:
  *   ffmpeg -i input.mp4 -c:v mjpeg -q:v 5 -vf "scale=800:480" -r 20 "01 - Title.mjpeg"
- *   ffmpeg -i input.mp4 -ac 2 -ar 44100 -q:a 2 "01 - Title.mp3"
+ *   ffmpeg -i input.mp4 -ac 2 -ar 32000 -ab 128k -codec:a libmp3lame "01 - Title.mp3"
  * Place both in /sdcard/video/
  */
 

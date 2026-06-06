@@ -27,7 +27,7 @@ idf.py -p COM4 flash
 **Video file format:**
 - Resolution: 480×800 portrait MJPEG
 - FFmpeg: `ffmpeg -i input.mp4 -c:v mjpeg -q:v 5 -vf "transpose=1,scale=480:800" -r 20 "01 - Title.mjpeg"`
-- Audio: `ffmpeg -i input.mp4 -ac 2 -ar 44100 -q:a 2 "01 - Title.mp3"`
+- Audio: `ffmpeg -i input.mp4 -ac 2 -ar 32000 -ab 128k -codec:a libmp3lame "01 - Title.mp3"` (must match codec fixed at 32kHz)
 - Place both in `/sdcard/video/` with matching base names
 
 ### WiFi Reconnect — FIXED

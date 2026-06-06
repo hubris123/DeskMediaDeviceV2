@@ -16,3 +16,13 @@ bool wifi_manager_is_connected(void);
 
 // Get current IP as string (returns "0.0.0.0" if not connected)
 void wifi_manager_get_ip(char *buf, size_t len);
+
+// Returns true while a connection attempt is in progress (cleared on success or max retries)
+bool wifi_manager_is_connecting(void);
+
+// Get the reason code from the last disconnect event (0 if never disconnected)
+// Reason 15  = wrong password / auth failure
+// Reason 202 = auth fail
+// Reason 205 = AP not found
+// Reason 8   = intentional disconnect (we triggered it)
+uint8_t wifi_manager_get_last_disconnect_reason(void);
