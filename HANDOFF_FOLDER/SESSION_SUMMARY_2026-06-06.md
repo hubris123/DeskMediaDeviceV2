@@ -86,18 +86,15 @@ idf.py -p COM4 flash
 
 ## Next Tasks
 
-### 1. MP3 Start Pop/Click (PRIORITY)
-- Harsh transient at beginning of every track
+### 1. MP3 Start Pop/Click — LARGELY RESOLVED
 - Codec opened once at boot — PA stays on permanently — pop is NOT from PA enable on open
-- Pop occurs on every track start: DMA transitioning from previous track's tail to new track's first frame
-- Tried: silence flush (4 iterations) — didn't help
-- Tried: silence flush (16 iterations) — didn't help, added touch delay
-- Tried: `esp_codec_dev_set_out_mute()` → silence → unmute — didn't help (digital, doesn't reach analog in time)
-- Tried: set volume to 0 → silence → restore — didn't help (same reason)
-- Trying: direct `gpio_set_level(BSP_POWER_AMP_IO, 0)` at task start → 2× silence frames → decode first frame → `gpio_set_level(1)` before first write
-  - Bypasses codec stack entirely — only untried path remaining
-  - Also applies to video player MP3s (both go through mp3_task via video_mp3_play)
-- If PA gate still pops: move gpio_set_level(1) to AFTER first esp_codec_dev_write (frame in FIFO first, then PA on)
+- Tried: silence flush (4/16 iterations), `set_out_mute()`, volume=0 — all failed (digital, too slow)
+- **Fix:** `gpio_set_level(BSP_POWER_AMP_IO, 0)` at task start → 2× silence frames → first frame → PA on
+- **Fix:** `adelay=500|500` in FFmpeg encode adds 0.5s leading silence to all music player MP3s
+- **Music player MP3s:** use `adelay=500|500` in FFmpeg — see MP3_CONVERSION_GUIDE.md
+- **Video audio MP3s:** do NOT add silence — codec already warm, video starts simultaneously
+- Residual tiny pop on track skip — DMA still has tail of previous track in flight when PA gates
+- **If it becomes a problem:** add a 500ms delay in mp3_stop() before starting next track, lets DMA fully drain to silence before new track begins
 
 ### 2. libhelix MP3 Pre-buffering in PSRAM (Task #7)
 - Software decoder causes ~5fps drop and touch delay during playback
