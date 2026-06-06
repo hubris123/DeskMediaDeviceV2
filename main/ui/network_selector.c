@@ -14,6 +14,8 @@ static const char *TAG = "NetworkSelector";
 // ── State ────────────────────────────────────────────────────────────────────
 
 #define MAX_NETWORKS    20
+static char s_ssid_pool[MAX_NETWORKS][33];  // static pool — no malloc/leak
+static int  s_ssid_pool_idx = 0;
 #define ROW_PAD_X       10
 #define ROW_PAD_Y       10
 #define ROW_PAD_LEFT    5
@@ -27,6 +29,7 @@ static lv_obj_t *s_selected_row = NULL;
 static network_selected_cb_t s_on_selected = NULL;
 static lv_obj_t *s_list_cont = NULL;
 static lv_obj_t *s_searching_overlay = NULL;
+static volatile bool s_scan_running = false;
 
 // ── Searching overlay ─────────────────────────────────────────────────────────
 
@@ -225,8 +228,9 @@ static void populate_network_list(wifi_ap_record_t *aps, uint16_t count)
         lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
         lv_obj_set_style_pad_column(row, ROW_PAD_X, 0);
 
-        char *ssid_copy = malloc(33);
-        if (ssid_copy) {
+        char *ssid_copy = NULL;
+        if (s_ssid_pool_idx < MAX_NETWORKS) {
+            ssid_copy = s_ssid_pool[s_ssid_pool_idx++];
             strncpy(ssid_copy, ssid, 32);
             ssid_copy[32] = '\0';
         }
@@ -255,8 +259,9 @@ static void populate_network_list(wifi_ap_record_t *aps, uint16_t count)
 
 static void wifi_scan_task(void *arg)
 {
+    s_scan_running = true;
     // Show "starting" message, wait for WiFi to be ready
-    bsp_display_lock(0);
+    bsp_display_lock(-1);
     if (s_searching_overlay) {
         lv_obj_t *lbl = lv_obj_get_child(s_searching_overlay, 0);
         if (lbl) lv_label_set_text(lbl, "STARTING WIFI RECEIVER");
@@ -266,7 +271,7 @@ static void wifi_scan_task(void *arg)
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     // Switch to searching message
-    bsp_display_lock(0);
+    bsp_display_lock(-1);
     if (s_searching_overlay) {
         lv_obj_t *lbl = lv_obj_get_child(s_searching_overlay, 0);
         if (lbl) lv_label_set_text(lbl, "SEARCHING FOR NETWORKS");
@@ -285,7 +290,7 @@ static void wifi_scan_task(void *arg)
 
     esp_err_t err = esp_wifi_scan_start(&scan_cfg, true); // blocking
 
-    bsp_display_lock(0);
+    bsp_display_lock(-1);
 
     show_searching_overlay(false);
 
@@ -308,13 +313,18 @@ static void wifi_scan_task(void *arg)
     }
 
     bsp_display_unlock();
+    s_scan_running = false;
     vTaskDelete(NULL);
 }
 
 static void do_wifi_scan(void)
 {
+    if (s_scan_running) {
+        ESP_LOGW(TAG, "Scan already running, skipping");
+        return;
+    }
     show_searching_overlay(true);
-    xTaskCreate(wifi_scan_task, "wifi_scan", 4096, NULL, 5, NULL);
+    xTaskCreate(wifi_scan_task, "wifi_scan", 8192, NULL, 5, NULL);
 }
 
 // ── Button callbacks ──────────────────────────────────────────────────────────
@@ -348,6 +358,18 @@ static void networkselector_load_cb(lv_event_t *e)
     (void)e;
     s_selected_row = NULL;
     s_selected_ssid[0] = '\0';
+    s_ssid_pool_idx = 0;
+
+    // Wait for any previous scan to finish before destroying UI objects
+    int wait = 0;
+    while (s_scan_running && wait < 50) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        wait++;
+    }
+    if (s_scan_running) {
+        esp_wifi_scan_stop(); // force stop if still running
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
 
     // Destroy old list container so it gets recreated fresh
     if (s_list_cont) {

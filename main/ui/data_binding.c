@@ -92,7 +92,7 @@ void ui_set_default_weather(void)
     lv_label_set_text(GUI_Label__home__FEELSLIKETEMPQ,        "--°F");
     lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ,      "--%");
     lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,        "--");
-    lv_label_set_text(GUI_Label__home__LOCATIONQ,             "Las Cruces, NM");
+    lv_label_set_text(GUI_Label__home__LOCATIONQ,             "---, --");
     lv_label_set_text(GUI_Label__home__CURRENTTIMEQ,          "--:--");
     lv_label_set_text(GUI_Label__home__PRECIPITATIONQ,        "--%");
     lv_label_set_text(GUI_Label__home__details_wind_speed_lbl, "--");

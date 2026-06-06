@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "network_selector.h"
+#include "wifi_manager.h"
 #include "weather/weather_task.h"
 #include "GUI.h"
 #include "bsp/display.h"
@@ -52,6 +53,9 @@ static void save_btn_cb(lv_event_t *e)
         ESP_LOGI(TAG, "Triggering weather update for zip: %s", zip);
         weather_set_location(zip);
     }
+
+    // Reconnect WiFi with new credentials
+    wifi_manager_connect_saved();
 
     audio_play_success();
     lv_screen_load(GUI_Screen__home);

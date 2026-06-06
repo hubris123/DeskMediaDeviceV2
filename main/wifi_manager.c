@@ -1,5 +1,6 @@
 #include "wifi_manager.h"
 #include "storage/nvs_storage.h"
+#include "weather/weather_task.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -22,12 +23,19 @@ static char s_ip[16] = "0.0.0.0";
 
 // ── SNTP ─────────────────────────────────────────────────────────────────────
 
+static bool s_sntp_started = false;
+
 static void start_sntp(void)
 {
+    if (s_sntp_started) {
+        ESP_LOGI(TAG, "SNTP already running, skipping");
+        return;
+    }
     ESP_LOGI(TAG, "Starting SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
+    s_sntp_started = true;
 }
 
 // ── Event handler ─────────────────────────────────────────────────────────────
@@ -65,6 +73,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         if (s_wifi_event_group)
             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         start_sntp();
+        // Re-trigger weather fetch after reconnect (handles network switch case)
+        char zip[16] = "";
+        if (nvs_load_zipcode(zip, sizeof(zip)) == ESP_OK && strlen(zip) > 0) {
+            weather_set_location(zip);
+        }
     }
 }
 
@@ -99,6 +112,10 @@ esp_err_t wifi_manager_connect(const char *ssid, const char *password)
 
     s_retry_count = 0;
     s_connected = false;
+
+    // Disconnect first if already connected — required before switching networks
+    esp_wifi_disconnect();
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     esp_err_t err = esp_wifi_connect();

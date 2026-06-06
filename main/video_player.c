@@ -280,15 +280,6 @@ static void video_player_task(void *arg)
                 &out_size);
 
             if (err == ESP_OK) {
-                if (frame_count == 0) {
-                    // Read JPEG header to get actual frame dimensions
-                    jpeg_decode_picture_info_t pic_info = {0};
-                    jpeg_decoder_get_info(mjpeg_data + frame_start, (uint32_t)frame_len, &pic_info);
-                    ESP_LOGI(TAG, "First frame: %u bytes, JPEG=%ux%u into fb %p",
-                             (unsigned)out_size,
-                             (unsigned)pic_info.width, (unsigned)pic_info.height,
-                             target_fb);
-                }
                 esp_lv_adapter_dummy_draw_blit(g_lv_disp,
                                                0, 0, DISP_W, DISP_H,
                                                target_fb, true);
