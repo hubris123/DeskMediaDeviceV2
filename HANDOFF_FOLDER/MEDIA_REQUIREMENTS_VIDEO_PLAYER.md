@@ -38,13 +38,15 @@ Stream #0:0: Video: mjpeg, yuvj420p, 480x800, 25 fps
 | Setting | Value |
 |---------|-------|
 | Codec | MP3 |
-| Sample Rate | 44100 Hz |
+| Sample Rate | 32000 Hz |
+| Bitrate | 128 kbps |
 | Channels | Stereo |
-| Quality | -q:a 2 |
+
+**NOTE:** Codec is fixed at 32000Hz in firmware — do NOT use 44100Hz or audio will play at wrong speed. No `adelay` needed (codec is already warm when video starts).
 
 ### FFmpeg Conversion Command
 ```powershell
-ffmpeg -i "input.mp4" -ac 2 -ar 44100 -q:a 2 "01 - Title.mp3"
+ffmpeg -i "input.mp4" -ac 2 -ar 32000 -ab 128k -codec:a libmp3lame "01 - Title.mp3"
 ```
 
 ---

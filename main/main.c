@@ -308,8 +308,9 @@ static esp_err_t codec_init(void)
         ESP_LOGE(TAG, "esp_codec_dev_open failed: %d", ret);
         return ESP_FAIL;
     }
-    esp_codec_dev_set_out_vol(spk_codec_dev, 80);
-    ESP_LOGI(TAG, "Codec initialized, volume set to 80%%");
+    int saved_vol = nvs_load_volume(80);
+    esp_codec_dev_set_out_vol(spk_codec_dev, saved_vol);
+    ESP_LOGI(TAG, "Codec initialized, volume set to %d%%", saved_vol);
     return ESP_OK;
 }
 
@@ -1070,6 +1071,10 @@ void app_main(void)
 
     g_lv_disp = bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
+    int saved_brightness = nvs_load_brightness(80);
+    if (saved_brightness < 10) saved_brightness = 10;
+    bsp_display_brightness_set(saved_brightness);
+    ESP_LOGI(TAG, "Brightness restored to %d%%", saved_brightness);
 
     bsp_display_lock(-1);
     create_ui();

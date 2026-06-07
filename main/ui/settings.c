@@ -26,10 +26,6 @@ static void settings_btn_cb(lv_event_t *e)
 {
     (void)e;
     ESP_LOGI(TAG, "Opening settings screen");
-    // Set brightness slider to current value before showing
-    int cur = bsp_display_brightness_get();
-    if (cur < 0) cur = 80;
-    lv_slider_set_value(GUI_Slider__settingswindow__slider_1, cur, LV_ANIM_OFF);
     lv_screen_load(GUI_Screen__settingswindow);
 }
 
@@ -38,24 +34,43 @@ static void save_btn_cb(lv_event_t *e)
     (void)e;
     ESP_LOGI(TAG, "Settings saved");
 
-    // Save WiFi credentials to NVS
-    const char *ssid = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_2);
-    const char *pass = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_3);
-    if (ssid && strlen(ssid) > 0) {
-        nvs_store_wifi(ssid, pass ? pass : "");
+    // Load current saved values to compare against
+    char saved_ssid[33] = "";
+    char saved_pass[65] = "";
+    char saved_zip[16]  = "";
+    nvs_load_wifi(saved_ssid, sizeof(saved_ssid), saved_pass, sizeof(saved_pass));
+    nvs_load_zipcode(saved_zip, sizeof(saved_zip));
+
+    const char *new_ssid = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_2);
+    const char *new_pass = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_3);
+    const char *new_zip  = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_1);
+    if (!new_ssid) new_ssid = "";
+    if (!new_pass) new_pass = "";
+    if (!new_zip)  new_zip  = "";
+
+    bool wifi_changed = (strcmp(new_ssid, saved_ssid) != 0) ||
+                        (strcmp(new_pass, saved_pass) != 0);
+    bool zip_changed  = (strcmp(new_zip, saved_zip) != 0);
+
+    // Save WiFi credentials only if changed
+    if (wifi_changed && strlen(new_ssid) > 0) {
+        ESP_LOGI(TAG, "WiFi credentials changed — saving and reconnecting");
+        nvs_store_wifi(new_ssid, new_pass);
+        wifi_manager_connect_saved();
+    } else {
+        ESP_LOGI(TAG, "WiFi unchanged — skipping reconnect");
     }
 
-    // Save zip code to NVS and always trigger weather update
-    const char *zip = lv_textarea_get_text(GUI_Textarea__settingswindow__textarea_1);
-    if (zip && strlen(zip) > 0) {
-        nvs_store_zipcode(zip);
-        strncpy(s_zipcode, zip, sizeof(s_zipcode) - 1);
-        ESP_LOGI(TAG, "Triggering weather update for zip: %s", zip);
-        weather_set_location(zip);
+    // Save zip and trigger weather update only if changed
+    if (zip_changed && strlen(new_zip) > 0) {
+        ESP_LOGI(TAG, "Zip changed to %s — triggering weather update", new_zip);
+        nvs_store_zipcode(new_zip);
+        strncpy(s_zipcode, new_zip, sizeof(s_zipcode) - 1);
+        s_zipcode[sizeof(s_zipcode) - 1] = '\0';
+        weather_set_location(new_zip);
+    } else {
+        ESP_LOGI(TAG, "Zip unchanged — skipping weather update");
     }
-
-    // Reconnect WiFi with new credentials
-    wifi_manager_connect_saved();
 
     audio_play_success();
     lv_screen_load(GUI_Screen__home);
@@ -112,7 +127,15 @@ static void brightness_slider_cb(lv_event_t *e)
     }
     bsp_display_brightness_set(val);
     audio_play_tick();
-    ESP_LOGI(TAG, "Brightness set to %d%%", val);
+}
+
+static void brightness_slider_save_cb(lv_event_t *e)
+{
+    lv_obj_t *slider = lv_event_get_target(e);
+    int val = lv_slider_get_value(slider);
+    if (val < 10) val = 10;
+    nvs_store_brightness(val);
+    ESP_LOGI(TAG, "Brightness saved to NVS: %d%%", val);
 }
 
 static void volume_slider_cb(lv_event_t *e)
@@ -121,7 +144,14 @@ static void volume_slider_cb(lv_event_t *e)
     int val = lv_slider_get_value(slider);
     audio_set_volume(val);
     audio_play_tick();
-    ESP_LOGI(TAG, "Volume set to %d%%", val);
+}
+
+static void volume_slider_save_cb(lv_event_t *e)
+{
+    lv_obj_t *slider = lv_event_get_target(e);
+    int val = lv_slider_get_value(slider);
+    nvs_store_volume(val);
+    ESP_LOGI(TAG, "Volume saved to NVS: %d%%", val);
 }
 
 static void touch_feedback_cb(lv_event_t *e)
@@ -253,10 +283,13 @@ void settings_ui_init(void)
                         exit_btn_cb,
                         LV_EVENT_CLICKED, NULL);
 
-    // Brightness slider (slider_1) → live update
+    // Brightness slider (slider_1) → live update + save on release
     lv_obj_add_event_cb(GUI_Slider__settingswindow__slider_1,
                         brightness_slider_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(GUI_Slider__settingswindow__slider_1,
+                        brightness_slider_save_cb,
+                        LV_EVENT_RELEASED, NULL);
 
     // Mute checkbox → red indicator when checked, expanded touch area
     lv_obj_set_ext_click_area(GUI_Checkbox__settingswindow__checkbox, 20);
@@ -274,10 +307,13 @@ void settings_ui_init(void)
                         mute_long_press_cb,
                         LV_EVENT_PRESS_LOST, NULL);
 
-    // Volume slider → set volume + play preview
+    // Volume slider → set volume + play preview + save on release
     lv_obj_add_event_cb(GUI_Slider__settingswindow__slider,
                         volume_slider_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(GUI_Slider__settingswindow__slider,
+                        volume_slider_save_cb,
+                        LV_EVENT_RELEASED, NULL);
 
     // Touch feedback on settings widgets (not home screen background)
     // Note: save button (button_8) skipped here — it plays success sound instead
@@ -309,9 +345,9 @@ void settings_ui_init(void)
     lv_obj_set_style_pad_top(GUI_Textarea__settingswindow__textarea_1, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_bottom(GUI_Textarea__settingswindow__textarea_1, 0, LV_PART_MAIN);
 
-    // WiFi name field styling
+    // WiFi name field styling — fixed23 matches zip code size but non-bold
     lv_obj_set_style_text_font(GUI_Textarea__settingswindow__textarea_2,
-                               &title_1, LV_PART_MAIN);
+                               &fixed23, LV_PART_MAIN);
     lv_obj_set_style_text_color(GUI_Textarea__settingswindow__textarea_2,
                                 lv_color_hex(0x111111), LV_PART_MAIN);
     lv_obj_set_style_text_align(GUI_Textarea__settingswindow__textarea_2,
@@ -368,10 +404,16 @@ void settings_ui_init(void)
     lv_obj_set_style_text_color(GUI_Keyboard__keyboardpassword__keyboardpass,
                                 lv_color_hex(0x000000), LV_PART_ITEMS | LV_STATE_DEFAULT);
 
-    // Set initial brightness slider position
-    int cur = bsp_display_brightness_get();
-    if (cur < 0) cur = 80;
-    lv_slider_set_value(GUI_Slider__settingswindow__slider_1, cur, LV_ANIM_OFF);
+    // Restore brightness from NVS and apply
+    int saved_brightness = nvs_load_brightness(80);
+    if (saved_brightness < 10) saved_brightness = 10;
+    bsp_display_brightness_set(saved_brightness);
+    lv_slider_set_value(GUI_Slider__settingswindow__slider_1, saved_brightness, LV_ANIM_OFF);
+
+    // Restore volume from NVS and apply
+    int saved_volume = nvs_load_volume(80);
+    audio_set_volume(saved_volume);
+    lv_slider_set_value(GUI_Slider__settingswindow__slider, saved_volume, LV_ANIM_OFF);
 
     // WiFi name field → open network selector screen
     lv_obj_add_event_cb(GUI_Textarea__settingswindow__textarea_2,

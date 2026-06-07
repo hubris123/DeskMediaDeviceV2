@@ -72,4 +72,12 @@ esp_err_t nvs_load_wifi(char *ssid, size_t ssid_len, char *password, size_t pass
 esp_err_t nvs_store_zipcode(const char *zip);
 esp_err_t nvs_load_zipcode(char *zip, size_t len);
 
+// ── Display brightness (0-100) ────────────────────────────────────────────────
+esp_err_t nvs_store_brightness(int value);
+int       nvs_load_brightness(int default_val);
+
+// ── Speaker volume (0-100) ────────────────────────────────────────────────────
+esp_err_t nvs_store_volume(int value);
+int       nvs_load_volume(int default_val);
+
 #endif // NVS_STORAGE_H

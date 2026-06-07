@@ -266,3 +266,39 @@ esp_err_t nvs_load_zipcode(char *zip, size_t len)
     else ESP_LOGW(TAG, "No saved zip code");
     return ret;
 }
+
+// ── Display brightness ────────────────────────────────────────────────────────
+
+esp_err_t nvs_store_brightness(int value)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = nvs_set_i32(nvs_h, "brightness", (int32_t)value);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+int nvs_load_brightness(int default_val)
+{
+    if (!nvs_initialized) return default_val;
+    int32_t val = (int32_t)default_val;
+    nvs_get_i32(nvs_h, "brightness", &val);
+    return (int)val;
+}
+
+// ── Speaker volume ────────────────────────────────────────────────────────────
+
+esp_err_t nvs_store_volume(int value)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = nvs_set_i32(nvs_h, "volume", (int32_t)value);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+int nvs_load_volume(int default_val)
+{
+    if (!nvs_initialized) return default_val;
+    int32_t val = (int32_t)default_val;
+    nvs_get_i32(nvs_h, "volume", &val);
+    return (int)val;
+}
