@@ -259,7 +259,9 @@ static void video_player_task(void *arg)
             reshuffle_pending = true;
             next_track_idx = 0;
         }
-        if (video_track_count > 1) load_video_to_slot(next_slot, next_track_idx);
+        // NOTE: next track pre-load moved to AFTER the decode loop.
+        // Previously it ran here and caused audio/video sync delay —
+        // a 10MB SD read was blocking the first JPEG frame while audio played.
 
         size_t offset      = 0;
         size_t frame_start, frame_len;
@@ -299,6 +301,9 @@ static void video_player_task(void *arg)
 
         ESP_LOGI(TAG, "Track %d done: %d frames", track_idx, frame_count);
         video_mp3_stop();
+
+        // Pre-load next track now — current track is done, no sync issue
+        if (video_track_count > 1) load_video_to_slot(next_slot, next_track_idx);
 
         video_current_idx = next_track_idx;
         if (reshuffle_pending) { shuffle_playlist(); reshuffle_pending = false; }
