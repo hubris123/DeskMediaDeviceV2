@@ -87,6 +87,12 @@ static lv_obj_t *s_weather_overlay_lbl = NULL;
 // ── Memory display label ──────────────────────────────────────────────────────
 static lv_obj_t *mem_label = NULL;
 
+// ── Home screen timer handles — reset after video playback to prevent burst ──
+static lv_timer_t *s_clock_timer         = NULL;
+static lv_timer_t *s_music_watchdog_timer = NULL;
+static lv_timer_t *s_mem_label_timer     = NULL;
+static lv_timer_t *s_weather_overlay_timer = NULL;
+
 static void mem_label_cb(lv_timer_t *t)
 {
     (void)t;
@@ -245,10 +251,15 @@ static esp_err_t i2s_init(void);
 // ── Video player ──────────────────────────────────────────────────────────────
 #include "video_player.h"
 lv_display_t *g_lv_disp = NULL;
+lv_obj_t     *g_video_fade_overlay = NULL;
+
+// ── System ready flag — gates music player and video touch until fully booted ─
+static volatile bool g_system_ready = false;
 
 static void skull_touch_cb(lv_event_t *e)
 {
     (void)e;
+    if (!g_system_ready) return;
     ESP_LOGI(TAG, "Skull logo touched — starting video player");
     video_player_start();
 }
@@ -673,6 +684,7 @@ static void music_player_toggle(void)
 static void music_player_btn_cb(lv_event_t *e)
 {
     (void)e;
+    if (!g_system_ready) return;
     music_player_toggle();
 }
 
@@ -810,7 +822,7 @@ static void mp3_play_current(void)
 static void music_buttonplay_cb(lv_event_t *e)
 {
     (void)e;
-    if (mp3_track_count == 0) return;
+    if (!g_system_ready || mp3_track_count == 0) return;
     if (mp3_is_playing) {
         mp3_stop();
         lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
@@ -828,7 +840,7 @@ static void music_buttonplay_cb(lv_event_t *e)
 static void music_buttonup_cb(lv_event_t *e)
 {
     (void)e;
-    if (mp3_track_count == 0) return;
+    if (!g_system_ready || mp3_track_count == 0) return;
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track - 1 + mp3_track_count) % mp3_track_count;
@@ -846,7 +858,7 @@ static void music_buttonup_cb(lv_event_t *e)
 static void music_buttondown_cb(lv_event_t *e)
 {
     (void)e;
-    if (mp3_track_count == 0) return;
+    if (!g_system_ready || mp3_track_count == 0) return;
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track + 1) % mp3_track_count;
@@ -1001,6 +1013,21 @@ static void create_ui(void)
     lv_obj_align(s_weather_overlay_lbl, LV_ALIGN_CENTER, 0, 0);
 
     lv_timer_create(weather_overlay_cb, 500, NULL);
+
+    // ── Video fade-in overlay — full screen black, hidden normally ────────────
+    // After video ends, shown at full opacity then faded out to reveal home screen
+    g_video_fade_overlay = lv_obj_create(GUI_Screen__home);
+    lv_obj_set_size(g_video_fade_overlay, LV_HOR_RES + 80, LV_VER_RES + 80);
+    lv_obj_set_align(g_video_fade_overlay, LV_ALIGN_CENTER);
+    lv_obj_set_pos(g_video_fade_overlay, 0, 0);
+    lv_obj_set_style_bg_color(g_video_fade_overlay, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(g_video_fade_overlay, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(g_video_fade_overlay, 0, 0);
+    lv_obj_set_style_radius(g_video_fade_overlay, 0, 0);
+    lv_obj_set_style_pad_all(g_video_fade_overlay, 0, 0);
+    lv_obj_clear_flag(g_video_fade_overlay, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_foreground(g_video_fade_overlay);
+    lv_obj_add_flag(g_video_fade_overlay, LV_OBJ_FLAG_HIDDEN); // hidden until video ends
 }
 
 void app_main(void)
@@ -1073,6 +1100,34 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Initialization complete");
     video_player_init();
+
+    // Wait for first weather fetch OR timeout before enabling touch.
+    // Prevents crashes from touching music/video before codec/wifi/weather are stable.
+    ESP_LOGI(TAG, "Waiting for system ready...");
+    const int READY_TIMEOUT_MS = 30000;
+    const int READY_POLL_MS    = 500;
+    for (int elapsed = 0; elapsed < READY_TIMEOUT_MS; elapsed += READY_POLL_MS) {
+        // Wait for first weather fetch AND for it to fully complete (not still fetching)
+        if (weather_get_last_update() > 0 && !weather_task_is_fetching()) {
+            // Extra settle time — second geocode+fetch fires immediately after first
+            // Give it a moment to start so we don't race with it
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            if (!weather_task_is_fetching()) {
+                ESP_LOGI(TAG, "Weather ready — enabling touch");
+                break;
+            }
+            // Still fetching after settle — keep waiting
+        }
+        // Allow through if WiFi failed with an error (no point waiting for weather)
+        uint8_t reason = wifi_manager_get_last_disconnect_reason();
+        if (!wifi_manager_is_connecting() && !wifi_manager_is_connected() && reason != 0) {
+            ESP_LOGW(TAG, "WiFi unavailable — enabling touch anyway");
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(READY_POLL_MS));
+    }
+    g_system_ready = true;
+    ESP_LOGI(TAG, "System ready — touch enabled");
 
     weather_data_t api_data = {0};
     uint32_t last_displayed_update = 0;

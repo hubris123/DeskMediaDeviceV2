@@ -10,6 +10,9 @@ extern "C" {
 // Exposed by main.c — the LVGL display handle needed for dummy_draw_blit
 extern lv_display_t *g_lv_disp;
 
+// Full-screen black overlay on home screen — used for fade-in after video ends
+extern lv_obj_t *g_video_fade_overlay;
+
 /**
  * Call once at boot after SD card is mounted.
  * Scans /sdcard/video/ for *.mjpeg files, builds a shuffled playlist,
