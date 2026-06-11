@@ -74,7 +74,6 @@ static esp_err_t http_get(const char *url, http_response_t *response)
         .timeout_ms = WEATHER_API_TIMEOUT_MS,
         .user_data = response,
         .event_handler = http_event_handler,
-        .skip_cert_common_name_check = true,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
@@ -85,10 +84,8 @@ static esp_err_t http_get(const char *url, http_response_t *response)
         return ESP_FAIL;
     }
 
-    // Required headers for Nominatim
     esp_http_client_set_header(client, "User-Agent", "DeskMediaDevice/1.0 (weather display)");
     esp_http_client_set_header(client, "Accept", "application/json");
-    esp_http_client_set_header(client, "Host", "nominatim.openstreetmap.org");
 
     esp_err_t err = esp_http_client_perform(client);
     if (err != ESP_OK) {
@@ -233,6 +230,10 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
         weather->timezone[sizeof(weather->timezone) - 1] = '\0';
     }
 
+    // Parse UTC offset from timezone=auto — needed below for local time formatting
+    cJSON *utc_offset = cJSON_GetObjectItem(root, "utc_offset_seconds");
+    weather->utc_offset_seconds = utc_offset ? utc_offset->valueint : -21600; // default MDT
+
     // Hourly forecast (next 5 hours)
     cJSON *hourly = cJSON_GetObjectItem(root, "hourly");
     if (hourly) {
@@ -274,9 +275,9 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                     weather->hourly.hours[i].weather_code = code_item->valueint;
 
                     // Format time as "3 PM", "4 PM", etc.
-                    // Apply MST offset (UTC-7)
-                    time_t t_mst = t - (7 * 3600);
-                    struct tm *local_tm = gmtime(&t_mst);
+                    // Apply UTC offset from the API (location's local time)
+                    time_t t_local = t + weather->utc_offset_seconds;
+                    struct tm *local_tm = gmtime(&t_local);
                     if (local_tm) {
                         char tmp[10] = {0};
                         strftime(tmp, sizeof(tmp), "%I%p", local_tm);
@@ -333,8 +334,10 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                     weather->daily[i].temp_low = low_item->valuedouble;
                     weather->daily[i].weather_code = code_item->valueint;
 
-                    // Format day name from unix timestamp
-                    struct tm *local_tm = localtime(&t);
+                    // Format day name from unix timestamp at the location's local time
+                    // (device clock is UTC — localtime() would be wrong near midnight)
+                    time_t t_local = t + weather->utc_offset_seconds;
+                    struct tm *local_tm = gmtime(&t_local);
                     if (local_tm) {
                         strftime(weather->daily[i].day_name,
                                 sizeof(weather->daily[i].day_name),
@@ -347,10 +350,6 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
             }
         }
     }
-
-    // Parse UTC offset from timezone=auto
-    cJSON *utc_offset = cJSON_GetObjectItem(root, "utc_offset_seconds");
-    weather->utc_offset_seconds = utc_offset ? utc_offset->valueint : -21600; // default MDT
 
     weather->is_valid = true;
     weather->last_update = (uint32_t)time(NULL);
@@ -399,6 +398,15 @@ esp_err_t weather_geocode_zipcode(const char *zip, location_t *location)
     esp_err_t err = esp_http_client_perform(geo_client);
     int status = esp_http_client_get_status_code(geo_client);
     esp_http_client_cleanup(geo_client);
+
+    if (err != ESP_OK || status != 200 || response.size == 0) {
+        ESP_LOGE(TAG, "Geocode HTTP failed: err=%s, status=%d, size=%u",
+                 esp_err_to_name(err), status, (unsigned)response.size);
+        free(response.buffer);
+        return (err != ESP_OK) ? err : ESP_FAIL;
+    }
+    // Null-terminate before JSON parse (size < capacity guaranteed by event handler)
+    response.buffer[response.size] = '\0';
 
     err = parse_geocoding_response(response.buffer, location);
     free(response.buffer);
