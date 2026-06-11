@@ -261,7 +261,14 @@ esp_err_t weather_get_data(weather_data_t *out)
     time_t now = time(NULL);
     if (now > 1700000000 && out->minutely_count > 0) {
         for (int i = out->minutely_count - 1; i >= 0; i--) {
-            if ((time_t)out->minutely[i].timestamp <= now) {
+            // Step must actually cover "now" (within one 15-min interval, +1 min
+            // slack) AND be newer than the API's own current-conditions
+            // timestamp. A stale step (e.g. array aligned to midnight, or fetch
+            // failures > 2h) must NOT replace the current block — that showed
+            // early-morning temps in the evening, ~10F off.
+            if ((time_t)out->minutely[i].timestamp <= now &&
+                now < (time_t)out->minutely[i].timestamp + (16 * 60) &&
+                out->minutely[i].timestamp > out->current_time) {
                 const minutely_step_t *st = &out->minutely[i];
                 out->current_temp           = st->temperature;
                 out->current_apparent_temp  = st->apparent_temp;

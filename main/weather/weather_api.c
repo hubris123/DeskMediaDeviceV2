@@ -308,8 +308,9 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
         cJSON *daily_precip = cJSON_GetObjectItem(daily, "precipitation_sum");
 
         if (daily_times && daily_highs && daily_lows && daily_codes) {
-            int num_days = cJSON_GetArraySize(daily_times);
-            if (num_days > 3) num_days = 3;
+            // API daily[0] is TODAY — skip it, display wants tomorrow + 2
+            int avail = cJSON_GetArraySize(daily_times) - 1;
+            int num_days = (avail > 3) ? 3 : (avail < 0 ? 0 : avail);
 
             // Use today's daily precipitation sum for the display (index 0)
             if (daily_precip) {
@@ -320,10 +321,10 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
             }
 
             for (int i = 0; i < num_days; i++) {
-                cJSON *time_item = cJSON_GetArrayItem(daily_times, i);
-                cJSON *high_item = cJSON_GetArrayItem(daily_highs, i);
-                cJSON *low_item  = cJSON_GetArrayItem(daily_lows, i);
-                cJSON *code_item = cJSON_GetArrayItem(daily_codes, i);
+                cJSON *time_item = cJSON_GetArrayItem(daily_times, i + 1);
+                cJSON *high_item = cJSON_GetArrayItem(daily_highs, i + 1);
+                cJSON *low_item  = cJSON_GetArrayItem(daily_lows,  i + 1);
+                cJSON *code_item = cJSON_GetArrayItem(daily_codes, i + 1);
 
                 if (time_item && high_item && low_item && code_item) {
                     // timeformat=unixtime — times are integers
@@ -481,7 +482,7 @@ esp_err_t weather_fetch_current(const location_t *location, weather_data_t *weat
              "&temperature_unit=fahrenheit"
              "&wind_speed_unit=mph"
              "&precipitation_unit=inch"
-             "&forecast_days=3"
+             "&forecast_days=4"  // daily[0]=today is skipped — display shows the NEXT 3 days
              "&forecast_hours=6"
              "&timezone=auto",
              location->latitude, location->longitude);
