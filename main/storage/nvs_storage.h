@@ -72,6 +72,11 @@ esp_err_t nvs_load_wifi(char *ssid, size_t ssid_len, char *password, size_t pass
 esp_err_t nvs_store_zipcode(const char *zip);
 esp_err_t nvs_load_zipcode(char *zip, size_t len);
 
+// ── NWS grid / station cache (stored once per ZIP, re-used across boots) ──────
+#include "nws_api.h"
+esp_err_t nvs_store_nws_grid(const nws_grid_t *grid);
+esp_err_t nvs_load_nws_grid(nws_grid_t *grid);
+
 // ── Display brightness (0-100) ────────────────────────────────────────────────
 esp_err_t nvs_store_brightness(int value);
 int       nvs_load_brightness(int default_val);

@@ -6,3 +6,9 @@ claudetransferv2/
 
 # Logs
 *.log
+
+# Device screen captures (rolling webcam frames)
+imagecapture/
+
+# Serial boot captures
+boot_log*.txt

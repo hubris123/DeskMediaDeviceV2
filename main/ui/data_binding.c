@@ -162,8 +162,10 @@ esp_err_t ui_update_current_weather(const weather_data_t *weather)
     snprintf(buffer, sizeof(buffer), "%.0f%%", weather->current_humidity);
     lv_label_set_text(GUI_Label__home__HUMIDITYPERCENTQ, buffer);
 
-    // Weather description
-    const char *desc = wmo_get_description(weather->current_weather_code);
+    // Weather description: use NWS textDescription when available
+    const char *desc = (weather->status_text[0])
+                       ? weather->status_text
+                       : wmo_get_description(weather->current_weather_code);
     lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ, desc);
 
     // Weather icon (60x60) — use is_day from API
@@ -221,7 +223,8 @@ esp_err_t ui_update_hourly_forecast(const weather_data_t *weather)
 
         // Icon
         int icon_id = wmo_get_icon_id(weather->hourly.hours[i].weather_code,
-                                     wmo_is_nighttime(weather->hourly.hours[i].timestamp, -7));
+                                     wmo_is_nighttime(weather->hourly.hours[i].timestamp,
+                                                      weather->utc_offset_seconds / 3600));
         const lv_image_dsc_t *icon = get_weather_icon_22(icon_id);
         lv_image_set_src(icon_imgs[i], icon);
     }

@@ -5,68 +5,40 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/**
- * Location information
- */
 typedef struct {
     char city[50];
     char state[3];
     float latitude;
     float longitude;
-    uint32_t timestamp;  // When location was set
+    uint32_t timestamp;
 } location_t;
 
-/**
- * Single point-in-time weather observation
- */
 typedef struct {
     float temperature;
-    int weather_code;        // WMO code
+    int weather_code;
     int humidity;
     int precipitation_prob;
     uint32_t timestamp;
 } weather_point_t;
 
-/**
- * Hourly forecast data (5 hours)
- */
 typedef struct {
     weather_point_t hours[5];
-    char times_12h[5][10];   // "3 PM", "4 PM", etc.
+    char times_12h[5][10];
 } hourly_forecast_t;
 
-/**
- * Daily forecast data (single day)
- */
 typedef struct {
     float temp_high;
     float temp_low;
     int weather_code;
     int precipitation_prob;
-    char date_str[12];       // "YYYY-MM-DD"
-    char day_name[10];       // "Monday", etc.
+    char date_str[12];
+    char day_name[10];
 } daily_forecast_t;
 
 /**
- * 15-minutely forecast step (HRRR minutely_15)
- * Fetched hourly; the display walks through these locally every 15 min.
- */
-#define MINUTELY_15_STEPS 8
-
-typedef struct {
-    uint32_t timestamp;      // unix time of step start
-    float temperature;
-    float apparent_temp;
-    float humidity;
-    float wind_speed;
-    int   wind_direction;    // degrees 0-360
-    int   weather_code;      // WMO code
-    int   is_day;            // 1 = day, 0 = night
-} minutely_step_t;
-
-/**
- * Complete weather dataset
- * Populated by weather API, consumed by UI display functions
+ * Complete weather dataset.
+ * Current conditions populated by NWS observations every 15 min.
+ * Hourly/daily populated by NWS forecast every 60 min.
  */
 typedef struct {
     // Current conditions
@@ -74,12 +46,13 @@ typedef struct {
     float current_apparent_temp;
     float current_humidity;
     float current_wind_speed;
-    int   current_wind_direction; // degrees 0-360
-    int current_weather_code;
-    int current_precip_prob;
-    int current_is_day;          // 1 = day, 0 = night (from API)
-    float current_precip;        // current precipitation in inches (rain+showers+snowfall)
+    int   current_wind_direction;
+    int   current_weather_code;
+    int   current_precip_prob;
+    int   current_is_day;
+    float current_precip;
     uint32_t current_time;
+    char  status_text[64];      // NWS textDescription, e.g. "Partly Cloudy"
 
     // Location info
     char city[50];
@@ -88,32 +61,21 @@ typedef struct {
     float longitude;
     char timezone[50];
 
-    // Hourly forecast (next 5 hours)
+    // Hourly forecast (next 4 hours, periods[1..4] from NWS hourly)
     hourly_forecast_t hourly;
 
     // Daily forecast (next 3 days)
     daily_forecast_t daily[3];
 
-    // 15-minutely steps (next 2h, HRRR) — current display steps through these
-    minutely_step_t minutely[MINUTELY_15_STEPS];
-    int minutely_count;
-
-    // Timezone
-    int32_t utc_offset_seconds;  // From Open-Meteo timezone=auto
+    // UTC offset derived from NWS hourly startTime (feeds the clock)
+    int32_t utc_offset_seconds;
 
     // Metadata
-    uint32_t last_update;    // Unix timestamp when data was fetched
-    bool is_valid;           // Data validity flag
+    uint32_t last_update;
+    bool is_valid;
 } weather_data_t;
 
-/**
- * Initialize empty weather data structure
- */
 void weather_data_init(weather_data_t *data);
-
-/**
- * Validate weather data before display
- */
 bool weather_data_is_current(const weather_data_t *data, uint32_t max_age_seconds);
 
 #endif // WEATHER_DATA_H

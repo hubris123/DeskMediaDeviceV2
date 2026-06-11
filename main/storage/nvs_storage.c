@@ -1,4 +1,5 @@
 #include "nvs_storage.h"
+#include "nws_api.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_log.h"
@@ -141,7 +142,7 @@ esp_err_t nvs_store_weather(const weather_data_t *weather)
     ret |= nvs_commit(nvs_h);
 
     if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Weather cached: %.1f, %d%%", weather->current_temp,
+        ESP_LOGI(TAG, "Weather cached: %.1f, %.0f%%", weather->current_temp,
                 weather->current_humidity);
     } else {
         ESP_LOGW(TAG, "Failed to cache weather");
@@ -265,6 +266,53 @@ esp_err_t nvs_load_zipcode(char *zip, size_t len)
     if (ret == ESP_OK) ESP_LOGI(TAG, "Zip code loaded: %s", zip);
     else ESP_LOGW(TAG, "No saved zip code");
     return ret;
+}
+
+// ── NWS grid / station cache ──────────────────────────────────────────────────
+
+esp_err_t nvs_store_nws_grid(const nws_grid_t *grid)
+{
+    if (!grid) return ESP_ERR_INVALID_ARG;
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = ESP_OK;
+    ret |= nvs_set_str(nvs_h, "nws_gid",  grid->grid_id);
+    ret |= nvs_set_i32(nvs_h, "nws_gx",   (int32_t)grid->grid_x);
+    ret |= nvs_set_i32(nvs_h, "nws_gy",   (int32_t)grid->grid_y);
+    ret |= nvs_set_str(nvs_h, "nws_sta",  grid->station);
+    ret |= nvs_commit(nvs_h);
+    if (ret == ESP_OK)
+        ESP_LOGI(TAG, "NWS grid cached: %s/%d,%d station=%s",
+                 grid->grid_id, grid->grid_x, grid->grid_y, grid->station);
+    else
+        ESP_LOGW(TAG, "Failed to cache NWS grid");
+    return ret;
+}
+
+esp_err_t nvs_load_nws_grid(nws_grid_t *grid)
+{
+    if (!grid) return ESP_ERR_INVALID_ARG;
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    memset(grid, 0, sizeof(*grid));
+
+    size_t len = sizeof(grid->grid_id);
+    if (nvs_get_str(nvs_h, "nws_gid", grid->grid_id, &len) != ESP_OK ||
+        !grid->grid_id[0]) {
+        ESP_LOGW(TAG, "No cached NWS grid");
+        return ESP_FAIL;
+    }
+
+    int32_t gx = 0, gy = 0;
+    nvs_get_i32(nvs_h, "nws_gx", &gx);
+    nvs_get_i32(nvs_h, "nws_gy", &gy);
+    grid->grid_x = (int)gx;
+    grid->grid_y = (int)gy;
+
+    len = sizeof(grid->station);
+    nvs_get_str(nvs_h, "nws_sta", grid->station, &len);
+
+    ESP_LOGI(TAG, "NWS grid loaded: %s/%d,%d station=%s",
+             grid->grid_id, grid->grid_x, grid->grid_y, grid->station);
+    return ESP_OK;
 }
 
 // ── Display brightness ────────────────────────────────────────────────────────

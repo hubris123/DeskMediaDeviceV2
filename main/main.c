@@ -12,6 +12,9 @@
 #include "esp_err.h"
 #include "esp_check.h"
 #include "driver/gpio.h"
+#include "driver/i2c_master.h"
+#include "esp_attr.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -1033,11 +1036,46 @@ static void create_ui(void)
 
 void app_main(void)
 {
+    // Hardware-reset the panel on BOTH candidate reset lines. BSP_LCD_RST (27) is
+    // what the BSP toggles, but the vendor code marks BSP_LCD_TOUCH_RST (23) as
+    // "shared with LCD reset" — if 23 is the real panel reset, toggling only 27
+    // leaves the panel un-reset after a soft reboot (blank screen until power cycle).
     gpio_set_direction(BSP_LCD_RST, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BSP_LCD_TOUCH_RST, GPIO_MODE_OUTPUT);
     gpio_set_level(BSP_LCD_RST, 0);
-    vTaskDelay(pdMS_TO_TICKS(20));
+    gpio_set_level(BSP_LCD_TOUCH_RST, 0);
+    // 20ms proved marginal: boots alternated between clean module reset (GT911 at
+    // 0x5d, display OK) and dirty (GT911 at 0x14, display black). Hold reset long
+    // enough for the module's reset RC to fully settle regardless of prior state.
+    vTaskDelay(pdMS_TO_TICKS(250));
     gpio_set_level(BSP_LCD_RST, 1);
+    gpio_set_level(BSP_LCD_TOUCH_RST, 1);
     vTaskDelay(pdMS_TO_TICKS(120));
+
+    // Wedge detector + self-heal. After a soft reset that interrupted active DSI
+    // video, the display module comes up wedged (panel stays black no matter what;
+    // GPIO reset, DSI SWRESET and PHY LDO power-cycle all proven insufficient).
+    // Empirically 7/7 boots: module wedged <=> GT911 latches backup address 0x14
+    // instead of 0x5d, and a wedged boot ALWAYS clears the wedge for the next boot.
+    // So: probe the GT911; if it answers at 0x14, restart once to land on the
+    // clean-boot side of the cycle. RTC-retained counter prevents a restart loop
+    // (it survives soft reset; garbage after power-on is harmless since a
+    // power-on boot is never wedged and 0x5d resets it to 0).
+    // Loop guard is stateless: our own esp_restart() reports ESP_RST_SW, every
+    // other reset on this board (power-on, esptool watchdog) reports ESP_RST_POWERON.
+    // So "wedged && not already our restart" can fire at most once per external reset.
+    // (RTC_NOINIT memory proved NOT retained across esptool's watchdog reset here,
+    // so a retained counter cannot work.)
+    if (bsp_i2c_init() == ESP_OK) {
+        if (i2c_master_probe(bsp_i2c_get_handle(), 0x14, 100) == ESP_OK) {
+            if (esp_reset_reason() != ESP_RST_SW) {
+                ESP_LOGW(TAG, "Display module wedged (GT911 at 0x14) — restarting to clear");
+                vTaskDelay(pdMS_TO_TICKS(100));
+                esp_restart();
+            }
+            ESP_LOGE(TAG, "Display wedge persists after self-restart — continuing anyway");
+        }
+    }
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -1065,6 +1103,9 @@ void app_main(void)
     bsp_display_cfg_t cfg = {
         .lv_adapter_cfg = ESP_LV_ADAPTER_DEFAULT_CONFIG(),
         .rotation = ESP_LV_ADAPTER_ROTATE_90,
+        // ROTATE_90 requires a tear-avoid mode (NONE rejects rotation and hangs
+        // display start). DOUBLE_FULL works on power-on boot; see reset_fix_changes.md
+        // for the soft-reset blank-screen investigation.
         .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_DOUBLE_FULL,
         .touch_flags = { .swap_xy = 1, .mirror_x = 1, .mirror_y = 0 }
     };

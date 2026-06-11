@@ -18,6 +18,7 @@
 #include "esp_lcd_touch_gt911.h"
 #include "bsp_err_check.h"
 #include "esp_codec_dev_defaults.h"
+#include "esp_system.h"
 #include "freertos/task.h"
 
 static const char *TAG = "ESP32_P4_4_3";
@@ -456,7 +457,29 @@ static esp_err_t bsp_enable_dsi_phy_power(void)
         .chan_id = BSP_MIPI_DSI_PHY_PWR_LDO_CHAN,
         .voltage_mv = BSP_MIPI_DSI_PHY_PWR_LDO_VOLTAGE_MV,
     };
+    // After a software/watchdog reset the LDO is still energized from the previous
+    // session, so the DSI PHY never sees a clean power-on edge and can stay wedged
+    // (app runs, backlight on, but no video). Force a real power cycle of the PHY
+    // rail before bringing it up. Done unconditionally: on a true power-on the rail
+    // is already down, so the extra off/on cycle is harmless, and gating on
+    // esp_reset_reason() proved unreliable (watchdog reset reported as POWERON).
+    ESP_LOGI(TAG, "Reset reason: %d", (int)esp_reset_reason());
+    {
+        esp_ldo_channel_handle_t tmp_chan = NULL;
+        esp_err_t pc_err = esp_ldo_acquire_channel(&ldo_cfg, &tmp_chan);
+        if (pc_err == ESP_OK)
+        {
+            esp_ldo_release_channel(tmp_chan); // last reference dropped -> LDO output off
+            vTaskDelay(pdMS_TO_TICKS(50));     // let the PHY rail fully discharge
+            ESP_LOGI(TAG, "DSI PHY LDO power-cycled before init");
+        }
+        else
+        {
+            ESP_LOGW(TAG, "DSI PHY LDO power-cycle skipped: acquire failed (0x%x)", pc_err);
+        }
+    }
     ESP_RETURN_ON_ERROR(esp_ldo_acquire_channel(&ldo_cfg, &phy_pwr_chan), TAG, "Acquire LDO channel for DPHY failed");
+    vTaskDelay(pdMS_TO_TICKS(10)); // PHY rail stabilization before DSI bus init
     ESP_LOGI(TAG, "MIPI DSI PHY Powered on");
 #endif // BSP_MIPI_DSI_PHY_PWR_LDO_CHAN > 0
 
@@ -541,11 +564,20 @@ esp_err_t bsp_display_new_with_handles(const bsp_display_config_t *config, bsp_l
         .bits_per_pixel = 16,
 #endif
         .rgb_ele_order = BSP_LCD_COLOR_SPACE,
-        .reset_gpio_num = BSP_LCD_RST,
+        // -1 forces the st7701 driver to send SWRESET over DSI instead of pulsing
+        // the reset GPIO. With a GPIO configured the driver skips SWRESET entirely,
+        // and the GPIO 27 reset line does not reliably reset the panel after a soft
+        // reboot (panel stays wedged/black until power cycle). The early GPIO 27/23
+        // pulse in app_main still provides the hardware reset attempt.
+        .reset_gpio_num = -1,
         .vendor_config = &vendor_config,
     };
     ESP_GOTO_ON_ERROR(esp_lcd_new_panel_st7701(io, &lcd_dev_config, &panel_handle), err, TAG, "New LCD panel Waveshare failed");
     ESP_GOTO_ON_ERROR(esp_lcd_panel_reset(panel_handle), err, TAG, "LCD panel reset failed");
+    // ST7701 requires at least 120ms after hardware reset before commands can be sent.
+    // On power cycle this is naturally satisfied by the long boot sequence, but after a
+    // software/watchdog reset the boot is faster and this delay must be explicit.
+    vTaskDelay(pdMS_TO_TICKS(120));
     ESP_GOTO_ON_ERROR(esp_lcd_panel_init(panel_handle), err, TAG, "LCD panel init failed");
 
     /* Return all handles */

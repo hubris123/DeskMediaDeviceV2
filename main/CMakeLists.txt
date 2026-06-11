@@ -4,6 +4,7 @@ idf_component_register(
         video_player.c
         weather/weather_data.c
         weather/weather_api.c
+        weather/nws_api.c
         weather/weather_task.c
         weather/wmo_icon_map.c
         storage/nvs_storage.c
