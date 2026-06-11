@@ -796,7 +796,7 @@ void video_mp3_play(const char *path)
     mp3_play_args_t *args = malloc(sizeof(mp3_play_args_t));
     if (!args) { mp3_is_playing = false; return; }
     strncpy(args->path, path, sizeof(args->path) - 1);
-    args->path[sizeof(args->path) - 1] = ' ';
+    args->path[sizeof(args->path) - 1] = '\0';
     xTaskCreate(mp3_task, "vid_mp3", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle);
 }
 
