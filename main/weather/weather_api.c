@@ -351,6 +351,52 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
         }
     }
 
+    // 15-minutely steps (HRRR) — walked through locally between hourly fetches
+    weather->minutely_count = 0;
+    cJSON *m15 = cJSON_GetObjectItem(root, "minutely_15");
+    if (m15) {
+        cJSON *m_times = cJSON_GetObjectItem(m15, "time");
+        cJSON *m_temp  = cJSON_GetObjectItem(m15, "temperature_2m");
+        cJSON *m_app   = cJSON_GetObjectItem(m15, "apparent_temperature");
+        cJSON *m_hum   = cJSON_GetObjectItem(m15, "relative_humidity_2m");
+        cJSON *m_code  = cJSON_GetObjectItem(m15, "weather_code");
+        cJSON *m_isday = cJSON_GetObjectItem(m15, "is_day");
+        cJSON *m_wspd  = cJSON_GetObjectItem(m15, "wind_speed_10m");
+        cJSON *m_wdir  = cJSON_GetObjectItem(m15, "wind_direction_10m");
+
+        if (m_times && m_temp && m_code) {
+            int n = cJSON_GetArraySize(m_times);
+            if (n > MINUTELY_15_STEPS) n = MINUTELY_15_STEPS;
+            for (int i = 0; i < n; i++) {
+                cJSON *t = cJSON_GetArrayItem(m_times, i);
+                cJSON *v = cJSON_GetArrayItem(m_temp,  i);
+                cJSON *c = cJSON_GetArrayItem(m_code,  i);
+                // null values = outside HRRR coverage — skip, fall back to current block
+                if (!t || !v || !c || !cJSON_IsNumber(v) || !cJSON_IsNumber(c)) continue;
+
+                minutely_step_t *st = &weather->minutely[weather->minutely_count];
+                st->timestamp    = (uint32_t)t->valueint;
+                st->temperature  = v->valuedouble;
+                st->weather_code = c->valueint;
+
+                cJSON *x;
+                x = m_app   ? cJSON_GetArrayItem(m_app, i)   : NULL;
+                st->apparent_temp  = (x && cJSON_IsNumber(x)) ? x->valuedouble : v->valuedouble;
+                x = m_hum   ? cJSON_GetArrayItem(m_hum, i)   : NULL;
+                st->humidity       = (x && cJSON_IsNumber(x)) ? (float)x->valuedouble : weather->current_humidity;
+                x = m_isday ? cJSON_GetArrayItem(m_isday, i) : NULL;
+                st->is_day         = (x && cJSON_IsNumber(x)) ? x->valueint : weather->current_is_day;
+                x = m_wspd  ? cJSON_GetArrayItem(m_wspd, i)  : NULL;
+                st->wind_speed     = (x && cJSON_IsNumber(x)) ? x->valuedouble : weather->current_wind_speed;
+                x = m_wdir  ? cJSON_GetArrayItem(m_wdir, i)  : NULL;
+                st->wind_direction = (x && cJSON_IsNumber(x)) ? x->valueint : weather->current_wind_direction;
+
+                weather->minutely_count++;
+            }
+            ESP_LOGI(TAG, "Parsed %d 15-minutely steps", weather->minutely_count);
+        }
+    }
+
     weather->is_valid = true;
     weather->last_update = (uint32_t)time(NULL);
 
@@ -427,12 +473,14 @@ esp_err_t weather_fetch_current(const location_t *location, weather_data_t *weat
              "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,is_day"
              "&hourly=temperature_2m,weather_code,precipitation_probability"
              "&daily=weather_code,temperature_2m_max,temperature_2m_min"
-             "&models=gfs_hrrr"  // NCEP HRRR — US CONUS model, more accurate than default/seamless
+             "&models=gfs_hrrr"  // NCEP HRRR — US CONUS model
+             "&minutely_15=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m"
+             "&forecast_minutely_15=8"  // next 2h of 15-min steps — display walks these between hourly fetches
              "&timeformat=unixtime"
              "&temperature_unit=fahrenheit"
              "&wind_speed_unit=mph"
              "&precipitation_unit=inch"
-             "&forecast_days=4"
+             "&forecast_days=3"
              "&forecast_hours=6"
              "&timezone=auto",
              location->latitude, location->longitude);

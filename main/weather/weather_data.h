@@ -48,6 +48,23 @@ typedef struct {
 } daily_forecast_t;
 
 /**
+ * 15-minutely forecast step (HRRR minutely_15)
+ * Fetched hourly; the display walks through these locally every 15 min.
+ */
+#define MINUTELY_15_STEPS 8
+
+typedef struct {
+    uint32_t timestamp;      // unix time of step start
+    float temperature;
+    float apparent_temp;
+    float humidity;
+    float wind_speed;
+    int   wind_direction;    // degrees 0-360
+    int   weather_code;      // WMO code
+    int   is_day;            // 1 = day, 0 = night
+} minutely_step_t;
+
+/**
  * Complete weather dataset
  * Populated by weather API, consumed by UI display functions
  */
@@ -76,6 +93,10 @@ typedef struct {
 
     // Daily forecast (next 3 days)
     daily_forecast_t daily[3];
+
+    // 15-minutely steps (next 2h, HRRR) — current display steps through these
+    minutely_step_t minutely[MINUTELY_15_STEPS];
+    int minutely_count;
 
     // Timezone
     int32_t utc_offset_seconds;  // From Open-Meteo timezone=auto

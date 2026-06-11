@@ -173,7 +173,7 @@ esp_err_t weather_task_start(void)
     }
 
     // Initialize state
-    g_state.update_interval_sec = 15 * 60;  // 15 minutes
+    g_state.update_interval_sec = 60 * 60;  // 1 hour — 15-min HRRR steps cover the display in between
     g_state.last_update = 0;
     memset(&g_state.data, 0, sizeof(weather_data_t));
     memset(&g_state.location, 0, sizeof(location_t));
@@ -252,6 +252,29 @@ esp_err_t weather_get_data(weather_data_t *out)
 
     memcpy(out, &g_state.data, sizeof(weather_data_t));
     xSemaphoreGive(g_state.data_mutex);
+
+    // Overlay the 15-minutely HRRR step covering "now" onto current conditions.
+    // Fetches are hourly; this walks the display forward every 15 minutes
+    // in between. last_update is offset by the step index so the main loop's
+    // change-detect refreshes the UI on each step boundary. No collision with
+    // a fresh fetch: a new fetch moves last_update forward by ~3600.
+    time_t now = time(NULL);
+    if (now > 1700000000 && out->minutely_count > 0) {
+        for (int i = out->minutely_count - 1; i >= 0; i--) {
+            if ((time_t)out->minutely[i].timestamp <= now) {
+                const minutely_step_t *st = &out->minutely[i];
+                out->current_temp           = st->temperature;
+                out->current_apparent_temp  = st->apparent_temp;
+                out->current_humidity       = st->humidity;
+                out->current_weather_code   = st->weather_code;
+                out->current_is_day         = st->is_day;
+                out->current_wind_speed     = st->wind_speed;
+                out->current_wind_direction = st->wind_direction;
+                out->last_update += (uint32_t)(i + 1);
+                break;
+            }
+        }
+    }
 
     return ESP_OK;
 }

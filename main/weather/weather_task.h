@@ -7,7 +7,7 @@
 
 /**
  * FreeRTOS background task for weather updates
- * - Runs every 15 minutes (configurable)
+ * - Fetches hourly (configurable); display steps through 15-min HRRR data in between
  * - Fetches from Open-Meteo API
  * - Updates display without blocking
  * - Handles offline scenarios gracefully
