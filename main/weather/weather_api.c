@@ -75,6 +75,7 @@ static esp_err_t http_get(const char *url, http_response_t *response)
         .user_data = response,
         .event_handler = http_event_handler,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        .buffer_size_tx = 1024,  // request line must fit the long minutely_15 URL (default 512 is too small)
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
