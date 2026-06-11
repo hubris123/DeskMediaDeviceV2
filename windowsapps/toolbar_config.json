@@ -1,0 +1,100 @@
+{
+  "row1": {
+    "target_hwnd": 25045902,
+    "target_title": "Administrator: IDF_v5.5.4_Powershell",
+    "buttons": [
+      {
+        "label": "CLS",
+        "type": "cmd",
+        "value": "cls",
+        "alt": 1,
+        "shortcut": "<F24>"
+      },
+      {
+        "label": "Clean",
+        "type": "cmd",
+        "value": "idf.py fullclean -C ammo_counter",
+        "alt": 2,
+        "shortcut": "<F23>"
+      },
+      {
+        "label": "Build",
+        "type": "cmd",
+        "value": ".\\build_and_log.ps1",
+        "alt": 3,
+        "shortcut": "<F22>"
+      },
+      {
+        "label": "Flash",
+        "type": "cmd",
+        "value": "idf.py -p COM7 flash -C ammo_counter",
+        "alt": 4,
+        "shortcut": "<F21>"
+      },
+      {
+        "label": "",
+        "type": "cmd",
+        "value": "",
+        "alt": 5,
+        "shortcut": ""
+      },
+      {
+        "label": "",
+        "type": "cmd",
+        "value": "",
+        "alt": 6,
+        "shortcut": ""
+      }
+    ]
+  },
+  "row2": {
+    "target_hwnd": 5375684,
+    "target_title": "Administrator: IDF_v5.5.4_Powershell",
+    "buttons": [
+      {
+        "label": "CLS MON",
+        "type": "cmd",
+        "value": "cls",
+        "alt": 7,
+        "shortcut": "<F20>"
+      },
+      {
+        "label": "Monitor",
+        "type": "cmd",
+        "value": "idf.py -p COM7 monitor -C ammo_counter",
+        "alt": 8,
+        "shortcut": "<F19>"
+      },
+      {
+        "label": "Kill Monitor",
+        "type": "cmd",
+        "value": "ctrl+]",
+        "alt": 9,
+        "shortcut": "<F18>"
+      },
+      {
+        "label": "",
+        "type": "cmd",
+        "value": "",
+        "alt": 10,
+        "shortcut": ""
+      },
+      {
+        "label": "",
+        "type": "cmd",
+        "value": "",
+        "alt": 11,
+        "shortcut": ""
+      },
+      {
+        "label": "",
+        "type": "key",
+        "value": "",
+        "alt": 12,
+        "shortcut": ""
+      }
+    ]
+  },
+  "window_x": 810,
+  "window_y": 23
+}

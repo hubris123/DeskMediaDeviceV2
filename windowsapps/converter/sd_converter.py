@@ -168,7 +168,7 @@ class ConverterApp(tk.Tk):
         PAD = 10
         BG = "#1e1e1e"
         FG = "#e0e0e0"
-        ACC = "#7F77DD"
+        ACC = "#E87B2C"
         ENTRY_BG = "#2d2d2d"
         FONT = ("Segoe UI", 10)
         FONT_B = ("Segoe UI", 10, "bold")
@@ -186,7 +186,7 @@ class ConverterApp(tk.Tk):
         def btn(parent, text, cmd, width=12):
             return tk.Button(parent, text=text, command=cmd, width=width,
                              bg=ACC, fg="white", relief="flat", font=FONT_B,
-                             activebackground="#6a62c4", activeforeground="white",
+                             activebackground="#cc6520", activeforeground="white",
                              cursor="hand2")
 
         # ── Mode selector ─────────────────────────────────────────────────────
