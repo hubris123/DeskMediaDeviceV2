@@ -73,6 +73,13 @@ esp_err_t ui_refresh_weather_display(const weather_data_t *weather, bool wifi_co
 void ui_set_default_weather(void);
 
 /**
+ * Set CURRENTSTATUSQ with auto-fit font. Never splits a word across lines;
+ * wraps at spaces; shrinks the font until the longest word fits one line and
+ * the wrapped block fits the label area.
+ */
+void ui_set_status_text(const char *desc);
+
+/**
  * Helper: Format temperature with degree symbol
  * @param temp: Temperature in Fahrenheit
  * @param buf: Output buffer

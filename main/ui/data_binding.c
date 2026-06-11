@@ -9,7 +9,96 @@
 
 static const char *TAG = "DataBinding";
 
+// 33px UI font — exists in the SquareLine export but is not declared in GUI.h
+LV_FONT_DECLARE(font);
+
 // ============ Helper Functions ============
+
+/**
+ * Set the current-status label ("Thunderstorm", "Rain And Partially Cloudy", ...)
+ * with auto-fitting font. Rules:
+ *  - a word is NEVER broken across lines: if the longest word doesn't fit one
+ *    line at a given font, try the next smaller font
+ *  - multi-word text may wrap at spaces, but the wrapped block must fit the
+ *    available height; otherwise try the next smaller font
+ * The largest font that satisfies both wins; if none does, the smallest is used.
+ */
+void ui_set_status_text(const char *desc)
+{
+    lv_obj_t *lbl = GUI_Label__home__CURRENTSTATUSQ;
+    lv_obj_t *cont = lv_obj_get_parent(lbl);
+    lv_obj_update_layout(cont);
+
+    // Text area = status container minus the 60x60 icon beside the label.
+    int32_t avail_w = lv_obj_get_content_width(cont) - 66;
+    int32_t avail_h = lv_obj_get_content_height(cont);
+    if (avail_w < 40) avail_w = 110;   // sane fallbacks before first layout pass
+    if (avail_h < 20) avail_h = 95;
+
+    int32_t letter_sp = lv_obj_get_style_text_letter_space(lbl, LV_PART_MAIN);
+    int32_t line_sp   = lv_obj_get_style_text_line_space(lbl, LV_PART_MAIN);
+
+    // Explicit descending ladder, independent of the SquareLine style font.
+    // Top step is the 33px UI-family font so short words ("Clear", "Rain")
+    // render larger than the default style. Montserrat fills the gaps so the
+    // fitter degrades gently instead of jumping 27px -> 17px.
+    const lv_font_t *ladder[] = {
+        &font,                  // 33 — top step
+        &header_1,              // 27
+        &lv_font_montserrat_26,
+        &lv_font_montserrat_24,
+        &lv_font_montserrat_22,
+        &lv_font_montserrat_20,
+        &lv_font_montserrat_18,
+        &title_1,               // 17
+        &lv_font_montserrat_16,
+        &lv_font_montserrat_14,
+        &subtitle_1,            // 13
+    };
+    const int n_fonts = (int)(sizeof(ladder) / sizeof(ladder[0]));
+
+    const lv_font_t *chosen = ladder[n_fonts - 1];
+    for (int i = 0; i < n_fonts; i++) {
+        const lv_font_t *f = ladder[i];
+
+        // Rule 1: every single word must fit on one line
+        bool fits = true;
+        const char *p = desc;
+        while (*p && fits) {
+            while (*p == ' ') p++;
+            const char *e = p;
+            while (*e && *e != ' ') e++;
+            if (e > p) {
+                char word[48];
+                size_t len = (size_t)(e - p);
+                if (len >= sizeof(word)) len = sizeof(word) - 1;
+                memcpy(word, p, len);
+                word[len] = '\0';
+                lv_point_t sz;
+                lv_text_get_size(&sz, word, f, letter_sp, line_sp, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+                if (sz.x > avail_w) fits = false;
+            }
+            p = e;
+        }
+
+        // Rule 2: the whole text, word-wrapped to the area width, must fit the height
+        if (fits) {
+            lv_point_t total;
+            lv_text_get_size(&total, desc, f, letter_sp, line_sp, avail_w, LV_TEXT_FLAG_NONE);
+            if (total.y > avail_h) fits = false;
+        }
+
+        if (fits) {
+            chosen = f;
+            break;
+        }
+    }
+
+    // Fixed width makes wrap behavior predictable (SIZE_CONTENT defeats wrapping)
+    lv_obj_set_width(lbl, avail_w);
+    lv_obj_set_style_text_font(lbl, chosen, LV_PART_MAIN);
+    lv_label_set_text(lbl, desc);
+}
 
 int format_temperature(float temp, char *buf, size_t len)
 {
@@ -166,7 +255,7 @@ esp_err_t ui_update_current_weather(const weather_data_t *weather)
     const char *desc = (weather->status_text[0])
                        ? weather->status_text
                        : wmo_get_description(weather->current_weather_code);
-    lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ, desc);
+    ui_set_status_text(desc);
 
     // Weather icon (60x60) — use is_day from API
     int is_night = (weather->current_is_day == 0) ? 1 : 0;

@@ -1,5 +1,6 @@
 #include "weather_display.h"
 #include "weather_icons.h"
+#include "data_binding.h"
 #include "GUI.h"
 #include "lvgl.h"
 #include "esp_log.h"
@@ -43,9 +44,8 @@ void weather_display_update(const weather_display_t *w)
     lv_image_set_src(GUI_Image__home__60X60ICONQ,
                      weather_icon_60(w->current_wmo, w->is_night));
 
-    /* Status text (e.g. "Partly Cloudy") */
-    lv_label_set_text(GUI_Label__home__CURRENTSTATUSQ,
-                      weather_description(w->current_wmo));
+    /* Status text (e.g. "Partly Cloudy") — auto-fits font, never splits words */
+    ui_set_status_text(weather_description(w->current_wmo));
 
     /* Humidity */
     snprintf(buf, sizeof(buf), "%d%%", w->current_humidity);
