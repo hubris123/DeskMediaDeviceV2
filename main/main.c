@@ -1142,7 +1142,11 @@ void app_main(void)
     } else {
         ESP_LOGI(TAG, "Loaded zip code from NVS: %s", saved_zip);
     }
-    weather_set_location(saved_zip);
+    // NOTE: weather_set_location() is intentionally NOT called here. The WiFi
+    // got-IP handler (wifi_manager.c) fires it once connectivity exists; calling
+    // it here too caused a full duplicate geocode + NWS grid + fetch cycle on
+    // every boot where WiFi connected quickly. Without network the call could
+    // never succeed anyway (weather task loads cached location/grid from NVS).
 
     ESP_LOGI(TAG, "Initialization complete");
     video_player_init();
