@@ -396,6 +396,14 @@ static esp_err_t parse_weather_response(const char *json_str, const location_t *
                 weather->minutely_count++;
             }
             ESP_LOGI(TAG, "Parsed %d 15-minutely steps", weather->minutely_count);
+            if (weather->minutely_count > 0) {
+                // Reveals array alignment: first should be ~now. If first is
+                // ~midnight, steps never cover the afternoon and overlay skips.
+                ESP_LOGI(TAG, "minutely window: first=%u last=%u now=%u",
+                         weather->minutely[0].timestamp,
+                         weather->minutely[weather->minutely_count - 1].timestamp,
+                         (uint32_t)time(NULL));
+            }
         }
     }
 

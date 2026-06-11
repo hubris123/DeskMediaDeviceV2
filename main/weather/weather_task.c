@@ -270,6 +270,13 @@ esp_err_t weather_get_data(weather_data_t *out)
                 now < (time_t)out->minutely[i].timestamp + (16 * 60) &&
                 out->minutely[i].timestamp > out->current_time) {
                 const minutely_step_t *st = &out->minutely[i];
+                static int s_last_logged_step = -1;
+                if (i != s_last_logged_step) {
+                    s_last_logged_step = i;
+                    ESP_LOGI(TAG, "15-min overlay: step %d (age %lds) %.1fF replaces API current %.1fF",
+                             i, (long)(now - (time_t)st->timestamp),
+                             st->temperature, out->current_temp);
+                }
                 out->current_temp           = st->temperature;
                 out->current_apparent_temp  = st->apparent_temp;
                 out->current_humidity       = st->humidity;
