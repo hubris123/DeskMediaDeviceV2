@@ -15,8 +15,12 @@
 #include "cJSON.h"
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
+#include "esp_lv_adapter.h"
 
 static const char *TAG = "OTA";
+
+LV_FONT_DECLARE(header_1);          // 27px UI font (SquareLine family)
+LV_FONT_DECLARE(title_1);           // 17px UI font
 
 #define OTA_RELEASES_URL  "https://api.github.com/repos/hubris123/DeskMediaDeviceV2/releases/latest"
 #define OTA_USER_AGENT    "DeskMediaDevice/1.0"
@@ -96,10 +100,54 @@ out:
 
 // ── Install ──────────────────────────────────────────────────────────────────
 
+// Full-screen black overlay + label shown during install. The OTA's sustained
+// flash writes starve display bandwidth and corrupt the streamed pixels (teal
+// flicker). A static framebuffer (LVGL paused) avoids the DMA2D blit races and
+// a dark screen at low brightness hides anything residual.
+static lv_obj_t *s_install_overlay;
+
+static void show_install_overlay(void)
+{
+    bsp_display_lock(-1);
+    s_install_overlay = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_install_overlay, LV_HOR_RES + 80, LV_VER_RES + 80);
+    lv_obj_center(s_install_overlay);
+    lv_obj_set_style_bg_color(s_install_overlay, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_install_overlay, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_install_overlay, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_install_overlay, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(s_install_overlay, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_t *lbl = lv_label_create(s_install_overlay);
+    lv_label_set_text_fmt(lbl, "Updating firmware to %s...\nDo not power off", s_new_tag);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xE07A00), LV_PART_MAIN);
+    lv_obj_set_style_text_font(lbl, &header_1, LV_PART_MAIN);
+    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_center(lbl);
+    bsp_display_unlock();
+}
+
+static void remove_install_overlay(void)
+{
+    if (!s_install_overlay) return;
+    bsp_display_lock(-1);
+    lv_obj_delete(s_install_overlay);
+    s_install_overlay = NULL;
+    bsp_display_unlock();
+}
+
 static void ota_install_task(void *arg)
 {
     (void)arg;
     ESP_LOGI(TAG, "Starting OTA from %s", s_bin_url);
+
+    // 1) static dark screen, 2) let it render, 3) dim, 4) freeze LVGL so the
+    // framebuffer stays untouched for the whole download
+    show_install_overlay();
+    vTaskDelay(pdMS_TO_TICKS(400));
+    int prev_brightness = bsp_display_brightness_get();
+    bsp_display_brightness_set(15);
+    bool lvgl_paused = (esp_lv_adapter_pause(2000) == ESP_OK);
 
     esp_http_client_config_t http_cfg = {
         .url = s_bin_url,
@@ -125,6 +173,10 @@ static void ota_install_task(void *arg)
     }
 
     ESP_LOGE(TAG, "OTA failed: %s", esp_err_to_name(err));
+    // Unwind the quiet-update state so the UI comes back
+    if (lvgl_paused) esp_lv_adapter_resume();
+    bsp_display_brightness_set(prev_brightness > 0 ? prev_brightness : 80);
+    remove_install_overlay();
     s_install_requested = false; // allow a retry on the next check cycle
     vTaskDelete(NULL);
 }
@@ -145,9 +197,6 @@ static void prompt_btn_cb(lv_event_t *e)
     // event handler frees the object tree the event core is still walking.
     lv_msgbox_close_async(mbox);
 }
-
-LV_FONT_DECLARE(header_1);          // 27px UI font (SquareLine family)
-LV_FONT_DECLARE(title_1);           // 17px UI font
 
 static void style_prompt_button(lv_obj_t *btn, lv_color_t bg)
 {
