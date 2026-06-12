@@ -1,5 +1,6 @@
 #include "ota_update.h"
 #include "wifi_manager.h"
+#include "nvs_storage.h"
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -114,6 +115,10 @@ static void ota_install_task(void *arg)
 
     esp_err_t err = esp_https_ota(&ota_cfg);
     if (err == ESP_OK) {
+        // Remember which release we just installed so the daily check can tell
+        // "already on it" — the firmware version string is a git hash, never
+        // equal to the tag, which used to re-prompt for the running release.
+        nvs_store_fw_tag(s_new_tag);
         ESP_LOGI(TAG, "OTA OK — rebooting into new firmware");
         vTaskDelay(pdMS_TO_TICKS(1000));
         esp_restart();
@@ -223,8 +228,11 @@ static void ota_check_task(void *arg)
             char url[sizeof(s_bin_url)] = "";
             if (fetch_latest_release(tag, sizeof(tag), url, sizeof(url)) == ESP_OK) {
                 const char *running = esp_app_get_description()->version;
-                ESP_LOGI(TAG, "Latest release: %s (running: %s)", tag, running);
-                if (strcmp(tag, running) != 0) {
+                char installed[64] = "";
+                nvs_load_fw_tag(installed, sizeof(installed));
+                ESP_LOGI(TAG, "Latest release: %s (running: %s, installed tag: %s)",
+                         tag, running, installed[0] ? installed : "none");
+                if (strcmp(tag, running) != 0 && strcmp(tag, installed) != 0) {
                     strlcpy(s_new_tag, tag, sizeof(s_new_tag));
                     strlcpy(s_bin_url, url, sizeof(s_bin_url));
                     show_update_prompt();

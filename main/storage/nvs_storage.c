@@ -369,6 +369,22 @@ bool nvs_load_mute(bool default_val)
     return val != 0;
 }
 
+// ── Installed firmware release tag (set by OTA before reboot) ────────────────
+
+esp_err_t nvs_store_fw_tag(const char *tag)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    esp_err_t ret = nvs_set_str(nvs_h, "fw_tag", tag);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+esp_err_t nvs_load_fw_tag(char *buf, size_t len)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    return nvs_get_str(nvs_h, "fw_tag", buf, &len);
+}
+
 // ── Display wedge self-restart flag ───────────────────────────────────────────
 // Set just before the wedge detector's esp_restart(); consumed on next boot.
 // Lives in NVS because nothing else survives every reset type on this board.

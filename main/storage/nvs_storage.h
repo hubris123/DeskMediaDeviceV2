@@ -93,4 +93,8 @@ bool      nvs_load_mute(bool default_val);
 esp_err_t nvs_store_wedge_restart(bool flag);
 bool      nvs_load_wedge_restart(void);
 
+// ── Installed firmware release tag (set by OTA before reboot) ────────────────
+esp_err_t nvs_store_fw_tag(const char *tag);
+esp_err_t nvs_load_fw_tag(char *buf, size_t len);
+
 #endif // NVS_STORAGE_H
