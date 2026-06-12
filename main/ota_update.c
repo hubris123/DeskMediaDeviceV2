@@ -119,7 +119,12 @@ static void show_install_overlay(void)
     lv_obj_clear_flag(s_install_overlay, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_t *lbl = lv_label_create(s_install_overlay);
-    lv_label_set_text_fmt(lbl, "Updating firmware to %s...\nDo not power off", s_new_tag);
+    lv_label_set_text_fmt(lbl,
+        "Updating firmware to %s...\n\n"
+        "The display will turn off while updating\n"
+        "and the device will reboot shortly.\n\n"
+        "Do not power off",
+        s_new_tag);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xE07A00), LV_PART_MAIN);
     lv_obj_set_style_text_font(lbl, &header_1, LV_PART_MAIN);
     lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -146,7 +151,7 @@ static void ota_install_task(void *arg)
     // help (the corruption is on the way OUT, 60x/s). Only a dark panel hides
     // it: show the message briefly, then kill the backlight for the download.
     show_install_overlay();
-    vTaskDelay(pdMS_TO_TICKS(2000));   // let the user read it
+    vTaskDelay(pdMS_TO_TICKS(3500));   // let the user read it before lights-out
     int prev_brightness = bsp_display_brightness_get();
     bool lvgl_paused = (esp_lv_adapter_pause(2000) == ESP_OK);
     bsp_display_backlight_off();
