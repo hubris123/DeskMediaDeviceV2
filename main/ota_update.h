@@ -20,3 +20,12 @@ void ota_update_start(void);
 
 /** Mark the running image good (cancels pending rollback). Idempotent. */
 void ota_update_mark_boot_valid(void);
+
+#include <stdbool.h>
+#include <stddef.h>
+/**
+ * Release tag of the RUNNING firmware, hash-validated: returns true and fills
+ * buf only if the stored tag was confirmed on this exact binary. False for
+ * dev/USB builds, after rollbacks, or any tag/binary mismatch.
+ */
+bool ota_get_installed_tag(char *buf, size_t len);

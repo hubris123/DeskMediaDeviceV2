@@ -385,6 +385,23 @@ esp_err_t nvs_load_fw_tag(char *buf, size_t len)
     return nvs_get_str(nvs_h, "fw_tag", buf, &len);
 }
 
+// App version string (git hash) the confirmed tag belongs to. A tag is only
+// trustworthy while this matches the running firmware's version.
+
+esp_err_t nvs_store_fw_tag_ver(const char *ver)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    esp_err_t ret = nvs_set_str(nvs_h, "fw_tag_ver", ver);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+esp_err_t nvs_load_fw_tag_ver(char *buf, size_t len)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    return nvs_get_str(nvs_h, "fw_tag_ver", buf, &len);
+}
+
 // Pending tag: what the OTA *attempted*. Promoted to fw_tag only after the
 // new firmware survives a boot; left behind after a rollback so the failed
 // release stays quarantined from re-install.

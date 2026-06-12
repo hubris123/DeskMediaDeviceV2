@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
+#include "ota_update.h"
 #include "nvs_flash.h"
 #include "nvs_storage.h"
 #include "esp_system.h"
@@ -274,14 +275,14 @@ void settings_ui_init(void)
     {
         const esp_app_desc_t *app = esp_app_get_description();
         const esp_partition_t *part = esp_ota_get_running_partition();
-        // Release tag (e.g. "v0.1.6") stored in NVS by the OTA installer.
-        // app->version is only the git hash; USB-flashed dev builds have no tag.
+        // Release tag, hash-validated: only shown if it was confirmed on this
+        // exact binary. Dev builds, rollbacks and mismatches show "dev build".
         char tag[64] = "";
-        nvs_load_fw_tag(tag, sizeof(tag));
+        bool has_tag = ota_get_installed_tag(tag, sizeof(tag));
         lv_obj_t *ver = lv_label_create(GUI_Screen__settingswindow);
         lv_label_set_text_fmt(ver, "%s%s%s  |  %s %s  |  %s",
-                              tag[0] ? tag : "dev",
-                              tag[0] ? " " : " build ",
+                              has_tag ? tag : "dev",
+                              has_tag ? " " : " build ",
                               app->version, app->date, app->time,
                               part ? part->label : "?");
         lv_obj_set_style_text_color(ver, lv_color_white(), LV_PART_MAIN);

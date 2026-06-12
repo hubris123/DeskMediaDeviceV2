@@ -100,5 +100,7 @@ esp_err_t nvs_store_fw_tag(const char *tag);
 esp_err_t nvs_load_fw_tag(char *buf, size_t len);
 esp_err_t nvs_store_fw_tag_pending(const char *tag);
 esp_err_t nvs_load_fw_tag_pending(char *buf, size_t len);
+esp_err_t nvs_store_fw_tag_ver(const char *ver);
+esp_err_t nvs_load_fw_tag_ver(char *buf, size_t len);
 
 #endif // NVS_STORAGE_H

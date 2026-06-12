@@ -286,7 +286,7 @@ static void ota_check_task(void *arg)
                 const char *running = esp_app_get_description()->version;
                 char installed[64] = "";
                 char pending[64] = "";
-                nvs_load_fw_tag(installed, sizeof(installed));
+                ota_get_installed_tag(installed, sizeof(installed)); // hash-validated
                 nvs_load_fw_tag_pending(pending, sizeof(pending));
                 ESP_LOGI(TAG, "Latest release: %s (running: %s, installed: %s, attempted: %s)",
                          tag, running, installed[0] ? installed : "none",
@@ -323,12 +323,28 @@ void ota_update_mark_boot_valid(void)
         esp_ota_mark_app_valid_cancel_rollback();
         ESP_LOGI(TAG, "Boot marked valid — rollback cancelled");
         // This is the new image's first healthy boot: the attempted tag is
-        // now the confirmed installed tag.
+        // now the confirmed installed tag, bound to THIS binary's version so
+        // it can never be displayed against a different firmware.
         char pending[64] = "";
         if (nvs_load_fw_tag_pending(pending, sizeof(pending)) == ESP_OK && pending[0]) {
             nvs_store_fw_tag(pending);
+            nvs_store_fw_tag_ver(esp_app_get_description()->version);
             nvs_store_fw_tag_pending("");
             ESP_LOGI(TAG, "Firmware tag confirmed: %s", pending);
         }
     }
+}
+
+bool ota_get_installed_tag(char *buf, size_t len)
+{
+    char tag[64] = "";
+    char ver[64] = "";
+    if (nvs_load_fw_tag(tag, sizeof(tag)) != ESP_OK || !tag[0]) return false;
+    if (nvs_load_fw_tag_ver(ver, sizeof(ver)) != ESP_OK || !ver[0]) return false;
+    // The tag is only meaningful for the binary it was confirmed on
+    if (strcmp(ver, esp_app_get_description()->version) != 0) return false;
+    if (buf && len) {
+        strlcpy(buf, tag, len);
+    }
+    return true;
 }
