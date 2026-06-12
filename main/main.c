@@ -1073,8 +1073,19 @@ static void create_ui(void)
     lv_obj_add_flag(g_video_fade_overlay, LV_OBJ_FLAG_HIDDEN); // hidden until video ends
 }
 
+// ── OTA rollback test hook ────────────────────────────────────────────────────
+// Set to 1 ONLY for a deliberate poison build: the app aborts instantly on
+// boot, before the wedge detector can mark the image valid. The bootloader
+// must then revert to the previous OTA slot on the following boot.
+// NEVER commit/release with this set to 1 except for a planned rollback test.
+#define OTA_ROLLBACK_TEST_CRASH 0
+
 void app_main(void)
 {
+#if OTA_ROLLBACK_TEST_CRASH
+    ESP_LOGE(TAG, "OTA ROLLBACK TEST BUILD — crashing on purpose NOW");
+    abort();
+#endif
     // Hardware-reset the panel on BOTH candidate reset lines. BSP_LCD_RST (27) is
     // what the BSP toggles, but the vendor code marks BSP_LCD_TOUCH_RST (23) as
     // "shared with LCD reset" — if 23 is the real panel reset, toggling only 27
