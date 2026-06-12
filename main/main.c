@@ -1113,20 +1113,24 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_storage_init());
 
     if (bsp_i2c_init() == ESP_OK) {
-        bool was_wedge_restart = nvs_load_wedge_restart();
-        if (was_wedge_restart) nvs_store_wedge_restart(false); // consume the flag
+        int wedge_restarts = nvs_load_wedge_restart();
         if (i2c_master_probe(bsp_i2c_get_handle(), 0x14, 100) == ESP_OK) {
-            if (!was_wedge_restart) {
-                ESP_LOGW(TAG, "Display module wedged (GT911 at 0x14) — restarting to clear");
+            if (wedge_restarts < 3) {
+                ESP_LOGW(TAG, "Display module wedged (GT911 at 0x14) — restart %d/3 to clear",
+                         wedge_restarts + 1);
                 // A freshly OTA'd image is still PENDING_VERIFY; our restart would
                 // look like a boot failure and trigger rollback. The app clearly
                 // runs (we're executing), so validate it before restarting.
                 ota_update_mark_boot_valid();
-                nvs_store_wedge_restart(true);
+                nvs_store_wedge_restart(wedge_restarts + 1);
                 vTaskDelay(pdMS_TO_TICKS(100));
                 esp_restart();
             }
-            ESP_LOGE(TAG, "Display wedge persists after self-restart — continuing anyway");
+            ESP_LOGE(TAG, "Display wedge persists after %d restarts — continuing anyway",
+                     wedge_restarts);
+            nvs_store_wedge_restart(0);
+        } else if (wedge_restarts != 0) {
+            nvs_store_wedge_restart(0); // clean boot — reset the counter
         }
     }
 

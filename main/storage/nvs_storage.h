@@ -89,9 +89,9 @@ int       nvs_load_volume(int default_val);
 esp_err_t nvs_store_mute(bool mute);
 bool      nvs_load_mute(bool default_val);
 
-// ── Display wedge self-restart flag (see app_main wedge detector) ─────────────
-esp_err_t nvs_store_wedge_restart(bool flag);
-bool      nvs_load_wedge_restart(void);
+// ── Display wedge self-restart counter (see app_main wedge detector) ──────────
+esp_err_t nvs_store_wedge_restart(int count);
+int       nvs_load_wedge_restart(void);
 
 // ── Installed firmware release tag (set by OTA before reboot) ────────────────
 esp_err_t nvs_store_fw_tag(const char *tag);

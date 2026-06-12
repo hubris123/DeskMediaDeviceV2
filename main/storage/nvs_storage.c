@@ -389,18 +389,18 @@ esp_err_t nvs_load_fw_tag(char *buf, size_t len)
 // Set just before the wedge detector's esp_restart(); consumed on next boot.
 // Lives in NVS because nothing else survives every reset type on this board.
 
-esp_err_t nvs_store_wedge_restart(bool flag)
+esp_err_t nvs_store_wedge_restart(int count)
 {
     if (!nvs_initialized) return ESP_FAIL;
-    esp_err_t ret = nvs_set_i32(nvs_h, "wedge_rst", flag ? 1 : 0);
+    esp_err_t ret = nvs_set_i32(nvs_h, "wedge_rst", count);
     ret |= nvs_commit(nvs_h);
     return ret;
 }
 
-bool nvs_load_wedge_restart(void)
+int nvs_load_wedge_restart(void)
 {
-    if (!nvs_initialized) return false;
+    if (!nvs_initialized) return 0;
     int32_t val = 0;
     nvs_get_i32(nvs_h, "wedge_rst", &val);
-    return val != 0;
+    return (int)val;
 }
