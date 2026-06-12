@@ -274,8 +274,14 @@ void settings_ui_init(void)
     {
         const esp_app_desc_t *app = esp_app_get_description();
         const esp_partition_t *part = esp_ota_get_running_partition();
+        // Release tag (e.g. "v0.1.6") stored in NVS by the OTA installer.
+        // app->version is only the git hash; USB-flashed dev builds have no tag.
+        char tag[64] = "";
+        nvs_load_fw_tag(tag, sizeof(tag));
         lv_obj_t *ver = lv_label_create(GUI_Screen__settingswindow);
-        lv_label_set_text_fmt(ver, "FW %s  |  %s %s  |  %s",
+        lv_label_set_text_fmt(ver, "%s%s%s  |  %s %s  |  %s",
+                              tag[0] ? tag : "dev",
+                              tag[0] ? " " : " build ",
                               app->version, app->date, app->time,
                               part ? part->label : "?");
         lv_obj_set_style_text_color(ver, lv_color_white(), LV_PART_MAIN);
