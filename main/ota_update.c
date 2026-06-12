@@ -141,13 +141,15 @@ static void ota_install_task(void *arg)
     (void)arg;
     ESP_LOGI(TAG, "Starting OTA from %s", s_bin_url);
 
-    // 1) static dark screen, 2) let it render, 3) dim, 4) freeze LVGL so the
-    // framebuffer stays untouched for the whole download
+    // The teal flicker during downloads is the DPI engine's framebuffer fetch
+    // losing PSRAM bandwidth to sustained flash writes — freezing LVGL doesn't
+    // help (the corruption is on the way OUT, 60x/s). Only a dark panel hides
+    // it: show the message briefly, then kill the backlight for the download.
     show_install_overlay();
-    vTaskDelay(pdMS_TO_TICKS(400));
+    vTaskDelay(pdMS_TO_TICKS(2000));   // let the user read it
     int prev_brightness = bsp_display_brightness_get();
-    bsp_display_brightness_set(15);
     bool lvgl_paused = (esp_lv_adapter_pause(2000) == ESP_OK);
+    bsp_display_backlight_off();
 
     esp_http_client_config_t http_cfg = {
         .url = s_bin_url,
@@ -173,7 +175,7 @@ static void ota_install_task(void *arg)
     }
 
     ESP_LOGE(TAG, "OTA failed: %s", esp_err_to_name(err));
-    // Unwind the quiet-update state so the UI comes back
+    // Unwind the quiet-update state so the UI comes back (backlight included)
     if (lvgl_paused) esp_lv_adapter_resume();
     bsp_display_brightness_set(prev_brightness > 0 ? prev_brightness : 80);
     remove_install_overlay();
