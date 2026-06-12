@@ -1097,25 +1097,13 @@ void app_main(void)
     // Empirically 7/7 boots: module wedged <=> GT911 latches backup address 0x14
     // instead of 0x5d, and a wedged boot ALWAYS clears the wedge for the next boot.
     // So: probe the GT911; if it answers at 0x14, restart once to land on the
-    // clean-boot side of the cycle. RTC-retained counter prevents a restart loop
-    // (it survives soft reset; garbage after power-on is harmless since a
-    // power-on boot is never wedged and 0x5d resets it to 0).
-    // Loop guard is stateless: our own esp_restart() reports ESP_RST_SW, every
-    // other reset on this board (power-on, esptool watchdog) reports ESP_RST_POWERON.
-    // So "wedged && not already our restart" can fire at most once per external reset.
-    // (RTC_NOINIT memory proved NOT retained across esptool's watchdog reset here,
-    // so a retained counter cannot work.)
-    if (bsp_i2c_init() == ESP_OK) {
-        if (i2c_master_probe(bsp_i2c_get_handle(), 0x14, 100) == ESP_OK) {
-            if (esp_reset_reason() != ESP_RST_SW) {
-                ESP_LOGW(TAG, "Display module wedged (GT911 at 0x14) — restarting to clear");
-                vTaskDelay(pdMS_TO_TICKS(100));
-                esp_restart();
-            }
-            ESP_LOGE(TAG, "Display wedge persists after self-restart — continuing anyway");
-        }
-    }
-
+    // clean-boot side of the cycle. An NVS flag guards against restart loops.
+    // NVS must come up before the wedge detector — its restart-loop guard lives
+    // in NVS (the only storage that survives every reset type on this board:
+    // RTC_NOINIT is NOT retained across esptool watchdog resets, and
+    // esp_reset_reason() can't distinguish our restart from any other
+    // esp_restart(), e.g. the post-OTA reboot — that ambiguity caused a blank
+    // screen after OTA installs).
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -1123,6 +1111,24 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
     ESP_ERROR_CHECK(nvs_storage_init());
+
+    if (bsp_i2c_init() == ESP_OK) {
+        bool was_wedge_restart = nvs_load_wedge_restart();
+        if (was_wedge_restart) nvs_store_wedge_restart(false); // consume the flag
+        if (i2c_master_probe(bsp_i2c_get_handle(), 0x14, 100) == ESP_OK) {
+            if (!was_wedge_restart) {
+                ESP_LOGW(TAG, "Display module wedged (GT911 at 0x14) — restarting to clear");
+                // A freshly OTA'd image is still PENDING_VERIFY; our restart would
+                // look like a boot failure and trigger rollback. The app clearly
+                // runs (we're executing), so validate it before restarting.
+                ota_update_mark_boot_valid();
+                nvs_store_wedge_restart(true);
+                vTaskDelay(pdMS_TO_TICKS(100));
+                esp_restart();
+            }
+            ESP_LOGE(TAG, "Display wedge persists after self-restart — continuing anyway");
+        }
+    }
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());

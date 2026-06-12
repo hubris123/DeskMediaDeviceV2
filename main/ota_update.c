@@ -161,7 +161,10 @@ static void show_update_prompt(void)
     if (s_prompt_open) return;
     s_prompt_open = true;
 
-    bsp_display_lock(0);
+    // -1 = block until the LVGL mutex is ours. 0 (try-once) returned failure
+    // under load and the code then touched LVGL unlocked — a race with the
+    // render task.
+    bsp_display_lock(-1);
     lv_obj_t *mbox = lv_msgbox_create(NULL);
 
     // Match the app theme: black panel, white text, thin light border
@@ -176,6 +179,8 @@ static void show_update_prompt(void)
     lv_obj_t *title = lv_msgbox_add_title(mbox, "Firmware Update");
     lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(title, &header_1, LV_PART_MAIN);
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_width(title, lv_pct(100));
 
     char msg[160];
     snprintf(msg, sizeof(msg), "New version available: %s\nCurrent: %s",
@@ -183,6 +188,10 @@ static void show_update_prompt(void)
     lv_obj_t *text = lv_msgbox_add_text(mbox, msg);
     lv_obj_set_style_text_color(text, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
     lv_obj_set_style_text_font(text, &title_1, LV_PART_MAIN);
+    lv_obj_set_style_text_align(text, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_width(text, lv_pct(100));
+    // Breathing room between the text block and the buttons
+    lv_obj_set_style_pad_bottom(text, 14, LV_PART_MAIN);
 
     // Header/content/footer wrappers inherit theme colors — flatten them
     lv_obj_set_style_bg_opa(lv_msgbox_get_header(mbox), LV_OPA_TRANSP, LV_PART_MAIN);
