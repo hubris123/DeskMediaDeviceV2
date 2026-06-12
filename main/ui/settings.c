@@ -283,10 +283,19 @@ void settings_ui_init(void)
         // Dark pill behind the text so it stays readable on the gray screen edge
         lv_obj_set_style_bg_color(ver, lv_color_black(), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(ver, LV_OPA_70, LV_PART_MAIN);
-        lv_obj_set_style_radius(ver, 4, LV_PART_MAIN);
-        lv_obj_set_style_pad_hor(ver, 6, LV_PART_MAIN);
-        lv_obj_set_style_pad_ver(ver, 2, LV_PART_MAIN);
-        lv_obj_align(ver, LV_ALIGN_BOTTOM_LEFT, 6, -6);
+        lv_obj_set_style_radius(ver, 6, LV_PART_MAIN);
+        lv_obj_set_style_pad_hor(ver, 8, LV_PART_MAIN);
+        lv_obj_set_style_pad_ver(ver, 3, LV_PART_MAIN);
+        // Run vertically along the left edge: rotated 90° clockwise so the
+        // glyph baselines face the screen edge, centered top-to-bottom.
+        lv_obj_set_style_transform_pivot_x(ver, lv_pct(50), LV_PART_MAIN);
+        lv_obj_set_style_transform_pivot_y(ver, lv_pct(50), LV_PART_MAIN);
+        lv_obj_set_style_transform_rotation(ver, 900, LV_PART_MAIN);
+        lv_obj_update_layout(ver);
+        // After rotation the visual footprint is tall and thin; place its
+        // center a pill-height away from the left edge, mid-screen.
+        lv_obj_align(ver, LV_ALIGN_LEFT_MID,
+                     14 - lv_obj_get_width(ver) / 2, 0);
     }
 
     // Fix touch on settings button — SquareLine sets ADV_HITTEST and removes
