@@ -6,6 +6,8 @@
 #include "bsp/display.h"
 #include "audio.h"
 #include "esp_log.h"
+#include "esp_app_desc.h"
+#include "esp_ota_ops.h"
 #include "nvs_flash.h"
 #include "nvs_storage.h"
 #include "esp_system.h"
@@ -266,6 +268,21 @@ static void on_network_selected(const char *ssid)
 
 void settings_ui_init(void)
 {
+    // Firmware version footer (bottom-left of settings screen). Compile time is
+    // the real build discriminator while versions are git hashes; the OTA slot
+    // shows whether this image came over the air (ota_1) or USB (ota_0).
+    {
+        const esp_app_desc_t *app = esp_app_get_description();
+        const esp_partition_t *part = esp_ota_get_running_partition();
+        lv_obj_t *ver = lv_label_create(GUI_Screen__settingswindow);
+        lv_label_set_text_fmt(ver, "FW %s  |  %s %s  |  %s",
+                              app->version, app->date, app->time,
+                              part ? part->label : "?");
+        lv_obj_set_style_text_color(ver, lv_color_hex(0x808080), LV_PART_MAIN);
+        lv_obj_set_style_text_font(ver, &lv_font_montserrat_14, LV_PART_MAIN);
+        lv_obj_align(ver, LV_ALIGN_BOTTOM_LEFT, 8, -4);
+    }
+
     // Fix touch on settings button — SquareLine sets ADV_HITTEST and removes
     // CLICKABLE from the parent container, which blocks touch events
     lv_obj_add_flag(GUI_Container__home__NETWORKSTAUSANDMENUCONT, LV_OBJ_FLAG_CLICKABLE);

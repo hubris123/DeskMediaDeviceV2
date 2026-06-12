@@ -28,6 +28,7 @@
 // Weather system integration
 #include "GUI.h"
 #include "audio.h"
+#include "ota_update.h"
 #include "settings.h"
 #include "weather/weather_task.h"
 #include "weather/weather_data.h"
@@ -1216,6 +1217,10 @@ void app_main(void)
     }
     g_system_ready = true;
     ESP_LOGI(TAG, "System ready — touch enabled");
+
+    // System proven healthy: cancel any pending OTA rollback, start update checks
+    ota_update_mark_boot_valid();
+    ota_update_start();
 
     weather_data_t api_data = {0};
     uint32_t last_displayed_update = 0;

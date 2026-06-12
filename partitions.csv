@@ -1,6 +1,9 @@
 # Name,   Type, SubType, Offset,  Size, Flags
-# Note: if you change the phy_init or app partition offset, make sure to change the offset in Kconfig.projbuild
+# OTA layout (June 2026). nvs/phy_init offsets unchanged so settings survive the
+# one-time USB reflash. App now lives at 0x20000 — flash scripts must match.
 nvs,      data, nvs,     0x9000,  0x6000,
 phy_init, data, phy,     0xf000,  0x1000,
-factory,  app,  factory, ,        8M,
+otadata,  data, ota,     0x10000, 0x2000,
+ota_0,    app,  ota_0,   0x20000, 8M,
+ota_1,    app,  ota_1,   ,        8M,
 storage,  data, spiffs,  ,        7M,

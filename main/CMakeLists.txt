@@ -14,6 +14,7 @@ idf_component_register(
         wifi_manager.c
         weather_icons.c
         weather_display.c
+        ota_update.c
     INCLUDE_DIRS
         .
         weather
@@ -22,6 +23,8 @@ idf_component_register(
     REQUIRES
         squareline_ui
         esp_http_client
+        esp_https_ota
+        app_update
         cjson
         nvs_flash
         freertos
