@@ -12,7 +12,9 @@
   `ota_update_mark_boot_valid()` called at System Ready)
 - Wired to the CURRENT public repo `hubris123/DeskMediaDeviceV2` releases — works
   today with zero auth for a hobby/single-device setup
-- NOT yet flashed or committed as of this writing
+- **DEPLOYED & VERIFIED June 11 2026:** v0.1.0→v0.1.5 shipped via OTA, self-healing
+  post-OTA boot (wedge detector, up to 3 retries), installed-tag dedup, quiet
+  install screen, version footer in settings. Device fully updates itself.
 
 ## Decision 1 — Where do release binaries live?
 
