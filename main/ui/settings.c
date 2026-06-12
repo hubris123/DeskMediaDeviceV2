@@ -278,9 +278,15 @@ void settings_ui_init(void)
         lv_label_set_text_fmt(ver, "FW %s  |  %s %s  |  %s",
                               app->version, app->date, app->time,
                               part ? part->label : "?");
-        lv_obj_set_style_text_color(ver, lv_color_hex(0x808080), LV_PART_MAIN);
+        lv_obj_set_style_text_color(ver, lv_color_white(), LV_PART_MAIN);
         lv_obj_set_style_text_font(ver, &lv_font_montserrat_14, LV_PART_MAIN);
-        lv_obj_align(ver, LV_ALIGN_BOTTOM_LEFT, 8, -4);
+        // Dark pill behind the text so it stays readable on the gray screen edge
+        lv_obj_set_style_bg_color(ver, lv_color_black(), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(ver, LV_OPA_70, LV_PART_MAIN);
+        lv_obj_set_style_radius(ver, 4, LV_PART_MAIN);
+        lv_obj_set_style_pad_hor(ver, 6, LV_PART_MAIN);
+        lv_obj_set_style_pad_ver(ver, 2, LV_PART_MAIN);
+        lv_obj_align(ver, LV_ALIGN_BOTTOM_LEFT, 6, -6);
     }
 
     // Fix touch on settings button — SquareLine sets ADV_HITTEST and removes
