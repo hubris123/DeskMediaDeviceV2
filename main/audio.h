@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include <stdbool.h>
 
 /**
  * Play a short tick sound (generated in memory, no SD card needed).
@@ -12,6 +13,18 @@ void audio_play_tick(void);
  * Set speaker volume 0-100.
  */
 void audio_set_volume(int percent);
+
+/**
+ * Mute / unmute the speaker output at the codec.
+ * Independent of volume — volume changes while muted stay silent.
+ */
+void audio_set_mute(bool mute);
+
+/**
+ * Pause / resume MP3 playback (gapless; no-op when nothing is playing).
+ * Used when the settings screen is open so UI sounds stay audible.
+ */
+void audio_music_set_paused(bool paused);
 
 /**
  * Play the WAV file from SD card (non-blocking).

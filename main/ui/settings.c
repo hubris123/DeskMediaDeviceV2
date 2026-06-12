@@ -26,6 +26,7 @@ static void settings_btn_cb(lv_event_t *e)
 {
     (void)e;
     ESP_LOGI(TAG, "Opening settings screen");
+    audio_music_set_paused(true);  // pause MP3 (not mute) while in settings
     lv_screen_load(GUI_Screen__settingswindow);
 }
 
@@ -73,6 +74,7 @@ static void save_btn_cb(lv_event_t *e)
     }
 
     audio_play_success();
+    audio_music_set_paused(false); // resume MP3 when leaving settings
     lv_screen_load(GUI_Screen__home);
 }
 
@@ -80,6 +82,7 @@ static void exit_btn_cb(lv_event_t *e)
 {
     (void)e;
     ESP_LOGI(TAG, "Settings exit");
+    audio_music_set_paused(false); // resume MP3 when leaving settings
     lv_screen_load(GUI_Screen__home);
 }
 
@@ -160,18 +163,21 @@ static void touch_feedback_cb(lv_event_t *e)
     audio_play_tick();
 }
 
+static void mute_apply_indicator(lv_obj_t *cb, bool muted)
+{
+    // Red indicator when muted, default white when unmuted
+    lv_color_t c = muted ? lv_color_hex(0xFF0000) : lv_color_hex(0xFFFFFF);
+    lv_obj_set_style_bg_color(cb, c, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_set_style_border_color(cb, c, LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
 static void mute_checkbox_cb(lv_event_t *e)
 {
     lv_obj_t *cb = lv_event_get_target(e);
     bool checked = lv_obj_has_state(cb, LV_STATE_CHECKED);
-    // Change checkbox indicator color: red when muted, default when unmuted
-    if (checked) {
-        lv_obj_set_style_bg_color(cb, lv_color_hex(0xFF0000), LV_PART_INDICATOR | LV_STATE_CHECKED);
-        lv_obj_set_style_border_color(cb, lv_color_hex(0xFF0000), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    } else {
-        lv_obj_set_style_bg_color(cb, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
-        lv_obj_set_style_border_color(cb, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    }
+    mute_apply_indicator(cb, checked);
+    audio_set_mute(checked);
+    nvs_store_mute(checked);
     ESP_LOGI(TAG, "Mute: %s", checked ? "ON" : "OFF");
 }
 
@@ -293,6 +299,16 @@ void settings_ui_init(void)
 
     // Mute checkbox → red indicator when checked, expanded touch area
     lv_obj_set_ext_click_area(GUI_Checkbox__settingswindow__checkbox, 20);
+    // Restore persisted mute state (codec itself is muted in codec_init)
+    {
+        bool muted = nvs_load_mute(false);
+        if (muted) {
+            lv_obj_add_state(GUI_Checkbox__settingswindow__checkbox, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(GUI_Checkbox__settingswindow__checkbox, LV_STATE_CHECKED);
+        }
+        mute_apply_indicator(GUI_Checkbox__settingswindow__checkbox, muted);
+    }
     lv_obj_add_event_cb(GUI_Checkbox__settingswindow__checkbox,
                         mute_checkbox_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);

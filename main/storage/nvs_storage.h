@@ -85,4 +85,8 @@ int       nvs_load_brightness(int default_val);
 esp_err_t nvs_store_volume(int value);
 int       nvs_load_volume(int default_val);
 
+// ── Speaker mute ──────────────────────────────────────────────────────────────
+esp_err_t nvs_store_mute(bool mute);
+bool      nvs_load_mute(bool default_val);
+
 #endif // NVS_STORAGE_H

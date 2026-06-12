@@ -350,3 +350,21 @@ int nvs_load_volume(int default_val)
     nvs_get_i32(nvs_h, "volume", &val);
     return (int)val;
 }
+
+// ── Speaker mute ──────────────────────────────────────────────────────────────
+
+esp_err_t nvs_store_mute(bool mute)
+{
+    if (!nvs_initialized) { ESP_LOGW(TAG, "NVS not initialized"); return ESP_FAIL; }
+    esp_err_t ret = nvs_set_i32(nvs_h, "mute", mute ? 1 : 0);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+bool nvs_load_mute(bool default_val)
+{
+    if (!nvs_initialized) return default_val;
+    int32_t val = default_val ? 1 : 0;
+    nvs_get_i32(nvs_h, "mute", &val);
+    return val != 0;
+}

@@ -78,6 +78,8 @@ static int  mp3_track_count   = 0;
 static int  mp3_current_track = 0;
 static volatile bool mp3_stop_requested = false;
 static volatile bool mp3_is_playing     = false;
+static volatile bool mp3_pause_requested = false;
+static volatile bool fx_playing          = false; // success/preview WAV writing to codec
 static TaskHandle_t  mp3_task_handle    = NULL;
 
 // ── UTC offset from last weather fetch (for time display) ────────────────────
@@ -313,7 +315,11 @@ static esp_err_t codec_init(void)
     }
     int saved_vol = nvs_load_volume(80);
     esp_codec_dev_set_out_vol(spk_codec_dev, saved_vol);
-    ESP_LOGI(TAG, "Codec initialized, volume set to %d%%", saved_vol);
+    bool saved_mute = nvs_load_mute(false);
+    if (saved_mute) {
+        esp_codec_dev_set_out_mute(spk_codec_dev, true);
+    }
+    ESP_LOGI(TAG, "Codec initialized, volume %d%%, mute %s", saved_vol, saved_mute ? "ON" : "OFF");
     return ESP_OK;
 }
 
@@ -427,8 +433,9 @@ static void tick_task(void *arg)
 {
     (void)arg;
     if (spk_codec_dev == NULL) { vTaskDelete(NULL); return; }
-    // Skip tick during MP3 playback — codec is owned by mp3_task, write would block/corrupt
-    if (mp3_is_playing) { vTaskDelete(NULL); return; }
+    // Skip tick during MP3 playback — codec is owned by mp3_task, write would block/corrupt.
+    // A PAUSED mp3 task isn't writing, so ticks are fine (settings screen relies on this).
+    if (mp3_is_playing && !mp3_pause_requested) { vTaskDelete(NULL); return; }
 
     // Generate a short 880Hz sine burst (20ms @ 32kHz = 640 samples)
     const int SAMPLES = 640;
@@ -457,6 +464,21 @@ void audio_set_volume(int percent)
     esp_codec_dev_set_out_vol(spk_codec_dev, percent);
 }
 
+void audio_set_mute(bool mute)
+{
+    if (spk_codec_dev == NULL) return;
+    esp_codec_dev_set_out_mute(spk_codec_dev, mute);
+    ESP_LOGI(TAG, "Speaker %s", mute ? "muted" : "unmuted");
+}
+
+void audio_music_set_paused(bool paused)
+{
+    mp3_pause_requested = paused;
+    if (mp3_is_playing) {
+        ESP_LOGI(TAG, "Music %s", paused ? "paused" : "resumed");
+    }
+}
+
 void audio_play_wav_preview(void)
 {
     if (wav_file_path[0] == '\0') return;
@@ -468,21 +490,28 @@ void audio_play_wav_preview(void)
 static void success_task(void *arg)
 {
     (void)arg;
-    if (spk_codec_dev == NULL) { vTaskDelete(NULL); return; }
+    // fx_playing was set in audio_play_success(); every exit must clear it or
+    // the mp3 task stays parked forever.
+    if (spk_codec_dev == NULL) { fx_playing = false; vTaskDelete(NULL); return; }
     FILE *f = fopen("/sdcard/SUCCESS.WAV", "rb");
-    if (!f) { ESP_LOGW("Audio", "SUCCESS.WAV not found"); vTaskDelete(NULL); return; }
+    if (!f) { ESP_LOGW("Audio", "SUCCESS.WAV not found"); fx_playing = false; vTaskDelete(NULL); return; }
     fseek(f, 44, SEEK_SET);  // skip WAV header
     uint8_t buf[512];
     size_t n;
     while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
         esp_codec_dev_write(spk_codec_dev, buf, (int)n);
     fclose(f);
+    fx_playing = false;
     vTaskDelete(NULL);
 }
 
 void audio_play_success(void)
 {
     if (spk_codec_dev == NULL) return;
+    // Set BEFORE the task exists: a paused mp3 task polls every 50ms and must
+    // never see a window where resume was requested but the effect hasn't
+    // claimed the codec yet.
+    fx_playing = true;
     xTaskCreate(success_task, "success_snd", 4096, NULL, 5, NULL);
 }
 
@@ -534,6 +563,15 @@ static void mp3_task(void *arg)
     bool pa_enabled = false;
 
     while (!mp3_stop_requested) {
+        // Pause: idle without touching the PA (toggling it pops). Decoder, file
+        // position and buffers all stay put, so resume is gapless. Also hold here
+        // while a sound effect (success/preview WAV) is writing to the codec —
+        // resuming mid-effect interleaves two writers and garbles both.
+        while ((mp3_pause_requested || fx_playing || is_playing) && !mp3_stop_requested) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        if (mp3_stop_requested) break;
+
         // Refill buffer from SD
         int space = MP3_READ_BUF_SIZE - bytes_in_buf;
         if (space > 0 && read_ptr != read_buf) {
