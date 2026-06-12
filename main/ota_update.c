@@ -170,10 +170,10 @@ static void ota_install_task(void *arg)
 
     esp_err_t err = esp_https_ota(&ota_cfg);
     if (err == ESP_OK) {
-        // Remember which release we just installed so the daily check can tell
-        // "already on it" — the firmware version string is a git hash, never
-        // equal to the tag, which used to re-prompt for the running release.
-        nvs_store_fw_tag(s_new_tag);
+        // PENDING only — promoted to the confirmed tag once the new firmware
+        // survives a boot (ota_update_mark_boot_valid). After a rollback the
+        // pending tag stays behind and quarantines the failed release.
+        nvs_store_fw_tag_pending(s_new_tag);
         ESP_LOGI(TAG, "OTA OK — rebooting into new firmware");
         vTaskDelay(pdMS_TO_TICKS(1000));
         esp_restart();
@@ -285,10 +285,16 @@ static void ota_check_task(void *arg)
             if (fetch_latest_release(tag, sizeof(tag), url, sizeof(url)) == ESP_OK) {
                 const char *running = esp_app_get_description()->version;
                 char installed[64] = "";
+                char pending[64] = "";
                 nvs_load_fw_tag(installed, sizeof(installed));
-                ESP_LOGI(TAG, "Latest release: %s (running: %s, installed tag: %s)",
-                         tag, running, installed[0] ? installed : "none");
-                if (strcmp(tag, running) != 0 && strcmp(tag, installed) != 0) {
+                nvs_load_fw_tag_pending(pending, sizeof(pending));
+                ESP_LOGI(TAG, "Latest release: %s (running: %s, installed: %s, attempted: %s)",
+                         tag, running, installed[0] ? installed : "none",
+                         pending[0] ? pending : "none");
+                // Skip if already running it, confirmed-installed, or it was
+                // attempted and (after a rollback) shouldn't be retried.
+                if (strcmp(tag, running) != 0 && strcmp(tag, installed) != 0 &&
+                    strcmp(tag, pending) != 0) {
                     strlcpy(s_new_tag, tag, sizeof(s_new_tag));
                     strlcpy(s_bin_url, url, sizeof(s_bin_url));
                     show_update_prompt();
@@ -316,5 +322,13 @@ void ota_update_mark_boot_valid(void)
         state == ESP_OTA_IMG_PENDING_VERIFY) {
         esp_ota_mark_app_valid_cancel_rollback();
         ESP_LOGI(TAG, "Boot marked valid — rollback cancelled");
+        // This is the new image's first healthy boot: the attempted tag is
+        // now the confirmed installed tag.
+        char pending[64] = "";
+        if (nvs_load_fw_tag_pending(pending, sizeof(pending)) == ESP_OK && pending[0]) {
+            nvs_store_fw_tag(pending);
+            nvs_store_fw_tag_pending("");
+            ESP_LOGI(TAG, "Firmware tag confirmed: %s", pending);
+        }
     }
 }

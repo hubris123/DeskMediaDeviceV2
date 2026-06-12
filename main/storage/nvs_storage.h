@@ -93,8 +93,12 @@ bool      nvs_load_mute(bool default_val);
 esp_err_t nvs_store_wedge_restart(int count);
 int       nvs_load_wedge_restart(void);
 
-// ── Installed firmware release tag (set by OTA before reboot) ────────────────
+// ── Installed firmware release tag ───────────────────────────────────────────
+// fw_tag = confirmed (survived a boot); fw_tag_pending = attempted by OTA,
+// promoted on first healthy boot, left behind after rollback (quarantine).
 esp_err_t nvs_store_fw_tag(const char *tag);
 esp_err_t nvs_load_fw_tag(char *buf, size_t len);
+esp_err_t nvs_store_fw_tag_pending(const char *tag);
+esp_err_t nvs_load_fw_tag_pending(char *buf, size_t len);
 
 #endif // NVS_STORAGE_H
