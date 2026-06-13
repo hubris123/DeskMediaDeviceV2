@@ -137,7 +137,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         s_connected = true;
         s_connecting = false;
         s_retry_count = 0;
-        stop_persistent_reconnect();  // back online — cancel the 30 s reconnect loop
+        s_last_disconnect_reason = 0;  // clear stale reason so the UI doesn't flag errors while connected
+        stop_persistent_reconnect();  // back online, cancel the 30 s reconnect loop
         if (s_wifi_event_group)
             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         start_sntp();
