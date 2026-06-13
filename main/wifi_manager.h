@@ -20,6 +20,14 @@ void wifi_manager_get_ip(char *buf, size_t len);
 // Returns true while a connection attempt is in progress (cleared on success or max retries)
 bool wifi_manager_is_connecting(void);
 
+// Returns true while in persistent reconnect mode: the fast retry burst failed but
+// saved credentials exist, so the manager keeps retrying every 30 s indefinitely.
+// Cleared once an IP is obtained. Survives reboots (re-entered on boot if the AP is down).
+bool wifi_manager_is_reconnecting(void);
+
+// Seconds remaining until the next persistent reconnect attempt (0 when not reconnecting).
+int wifi_manager_get_reconnect_countdown(void);
+
 // Get the reason code from the last disconnect event (0 if never disconnected)
 // Reason 15  = wrong password / auth failure
 // Reason 202 = auth fail

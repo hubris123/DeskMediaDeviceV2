@@ -142,6 +142,7 @@ static void status_bar_hide_cb(lv_anim_t *a)
 //   - No overlay if WiFi connected AND weather data is valid (happy path)
 //   - "LOADING WEATHER DATA"        — WiFi up, fetch in progress
 //   - "WIFI REQUIRED FOR WEATHER DATA" — not connected, never had data, no error
+//   - "RECONNECTING TO WIFI — RETRY IN NNs" — persistent reconnect, live countdown
 //   - "WRONG PASSWORD"              — disconnected with reason 15 or 202
 //   - "NETWORK NOT FOUND"           — disconnected with reason 205
 //   - "WIFI CONNECTION FAILED"      — max retries, other reason
@@ -151,11 +152,15 @@ static void weather_overlay_cb(lv_timer_t *t)
     if (!s_weather_overlay) return;
     if (lv_scr_act() != GUI_Screen__home) return;
 
-    bool connected   = wifi_manager_is_connected();
-    bool connecting  = wifi_manager_is_connecting();
-    bool fetching    = weather_task_is_fetching();
-    bool data_valid  = (weather_get_last_update() > 0);
-    uint8_t reason   = wifi_manager_get_last_disconnect_reason();
+    bool connected    = wifi_manager_is_connected();
+    bool connecting   = wifi_manager_is_connecting();
+    bool reconnecting = wifi_manager_is_reconnecting();
+    bool fetching     = weather_task_is_fetching();
+    bool data_valid   = (weather_get_last_update() > 0);
+    uint8_t reason    = wifi_manager_get_last_disconnect_reason();
+
+    // Dynamic countdown text needs a stable buffer (built fresh each tick below).
+    static char s_reconnect_buf[48];
 
     const char *msg  = NULL;
 
@@ -163,6 +168,13 @@ static void weather_overlay_cb(lv_timer_t *t)
         // All good — hide overlay
     } else if (connected && (fetching || !data_valid)) {
         msg = "LOADING WEATHER DATA";
+    } else if (reconnecting) {
+        // Lost a working connection (or rebooted while the AP is down) — keep
+        // trying every 30 s and show the live countdown to the next attempt.
+        int secs = wifi_manager_get_reconnect_countdown();
+        snprintf(s_reconnect_buf, sizeof(s_reconnect_buf),
+                 "RECONNECTING TO WIFI - RETRY IN %ds", secs);
+        msg = s_reconnect_buf;
     } else if (connecting) {
         // Active attempt in progress — always show this, overrides any stale error
         msg = "CONNECTING TO WIFI...";
@@ -180,6 +192,12 @@ static void weather_overlay_cb(lv_timer_t *t)
 
     // Only touch LVGL if the message actually changed
     static const char *s_last_msg = NULL;
+    // The reconnect countdown reuses one buffer but its text ticks every second —
+    // refresh the label in place without re-running the slide-in animation.
+    if (msg == s_reconnect_buf && s_last_msg == s_reconnect_buf) {
+        lv_label_set_text(s_weather_overlay_lbl, msg);
+        return;
+    }
     if (msg == s_last_msg) return;
     s_last_msg = msg;
 
@@ -199,18 +217,19 @@ static void weather_overlay_cb(lv_timer_t *t)
         // Background and text color by message type
         lv_color_t bg_color;
         lv_color_t txt_color;
-        if (reason == WIFI_REASON_ASSOC_LEAVE || reason == WIFI_REASON_AUTH_FAIL ||
-            reason == WIFI_REASON_NO_AP_FOUND ||
-            (reason != 0 && reason != WIFI_REASON_INTENTIONAL && !connected && !connecting)) {
+        if (!reconnecting &&
+            (reason == WIFI_REASON_ASSOC_LEAVE || reason == WIFI_REASON_AUTH_FAIL ||
+             reason == WIFI_REASON_NO_AP_FOUND ||
+             (reason != 0 && reason != WIFI_REASON_INTENTIONAL && !connected && !connecting))) {
             // Error states — red background, black text
             bg_color  = lv_color_hex(0xCC2222);
             txt_color = lv_color_hex(0x000000);
-        } else if (!connected && !connecting) {
+        } else if (!connected && !connecting && !reconnecting) {
             // No WiFi, no error yet — orange warning, black text
             bg_color  = lv_color_hex(0xCC6600);
             txt_color = lv_color_hex(0x000000);
         } else {
-            // Connecting or loading — dark gray, white text
+            // Connecting / reconnecting / loading — dark gray, white text
             bg_color  = lv_color_hex(0x222222);
             txt_color = lv_color_hex(0xFFFFFF);
         }

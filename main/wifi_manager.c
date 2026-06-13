@@ -5,6 +5,7 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "lwip/apps/sntp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -15,6 +16,7 @@ static const char *TAG = "WiFiManager";
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_FAIL_BIT       BIT1
 #define MAX_RETRIES         5
+#define RECONNECT_INTERVAL_US  (30 * 1000000LL)  // 30 s between persistent reconnect attempts
 
 static EventGroupHandle_t s_wifi_event_group = NULL;
 static bool s_connected = false;
@@ -22,6 +24,58 @@ static bool s_connecting = false;
 static int s_retry_count = 0;
 static char s_ip[16] = "0.0.0.0";
 static uint8_t s_last_disconnect_reason = 0;
+
+// ── Persistent reconnect ──────────────────────────────────────────────────────
+// After the fast retry burst fails, if we have saved credentials we keep trying
+// forever on a 30 s timer. Covers an overnight AP drop and the power-loss case
+// where the device reboots before the router is back. Cleared on a successful IP.
+static bool s_persistent_reconnect = false;
+static esp_timer_handle_t s_reconnect_timer = NULL;
+static int64_t s_next_attempt_us = 0;
+
+static bool have_saved_creds(void)
+{
+    char ssid[33] = "";
+    char pass[65] = "";
+    if (nvs_load_wifi(ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) return false;
+    return strlen(ssid) > 0;
+}
+
+static void reconnect_timer_cb(void *arg)
+{
+    (void)arg;
+    if (!s_persistent_reconnect) return;
+    s_next_attempt_us = esp_timer_get_time() + RECONNECT_INTERVAL_US;
+    ESP_LOGI(TAG, "Persistent reconnect: attempting...");
+    esp_wifi_connect();
+}
+
+static void start_persistent_reconnect(void)
+{
+    if (!s_reconnect_timer) {
+        const esp_timer_create_args_t args = {
+            .callback = reconnect_timer_cb,
+            .name = "wifi_reconnect",
+        };
+        if (esp_timer_create(&args, &s_reconnect_timer) != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to create reconnect timer");
+            return;
+        }
+    }
+    s_persistent_reconnect = true;
+    s_next_attempt_us = esp_timer_get_time() + RECONNECT_INTERVAL_US;
+    if (!esp_timer_is_active(s_reconnect_timer)) {
+        esp_timer_start_periodic(s_reconnect_timer, RECONNECT_INTERVAL_US);
+    }
+}
+
+static void stop_persistent_reconnect(void)
+{
+    s_persistent_reconnect = false;
+    if (s_reconnect_timer && esp_timer_is_active(s_reconnect_timer)) {
+        esp_timer_stop(s_reconnect_timer);
+    }
+}
 
 // ── SNTP ─────────────────────────────────────────────────────────────────────
 
@@ -57,15 +111,23 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             wifi_event_sta_disconnected_t *disc = (wifi_event_sta_disconnected_t *)event_data;
             s_last_disconnect_reason = disc->reason;
             ESP_LOGW(TAG, "WiFi disconnected, reason: %d", disc->reason);
-            if (s_retry_count < MAX_RETRIES) {
+            if (s_persistent_reconnect) {
+                // Already in slow-retry mode — the 30 s timer owns the next attempt.
+                s_connecting = false;
+            } else if (s_retry_count < MAX_RETRIES) {
                 s_retry_count++;
                 ESP_LOGI(TAG, "Retrying connection (%d/%d)...", s_retry_count, MAX_RETRIES);
                 esp_wifi_connect();
             } else {
-                ESP_LOGW(TAG, "Max retries reached, giving up");
                 s_connecting = false;
-                if (s_wifi_event_group)
-                    xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+                if (have_saved_creds()) {
+                    ESP_LOGW(TAG, "Max retries reached — entering persistent reconnect (every 30 s)");
+                    start_persistent_reconnect();
+                } else {
+                    ESP_LOGW(TAG, "Max retries reached, no saved credentials, giving up");
+                    if (s_wifi_event_group)
+                        xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+                }
             }
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -75,6 +137,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         s_connected = true;
         s_connecting = false;
         s_retry_count = 0;
+        stop_persistent_reconnect();  // back online — cancel the 30 s reconnect loop
         if (s_wifi_event_group)
             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         start_sntp();
@@ -119,6 +182,7 @@ esp_err_t wifi_manager_connect(const char *ssid, const char *password)
     s_connected = false;
     s_connecting = true;
     s_last_disconnect_reason = 0;  // clear stale reason — new attempt starting
+    stop_persistent_reconnect();   // fresh managed attempt owns the retry burst
 
     // Disconnect first if already connected — required before switching networks
     esp_wifi_disconnect();
@@ -171,4 +235,17 @@ uint8_t wifi_manager_get_last_disconnect_reason(void)
 bool wifi_manager_is_connecting(void)
 {
     return s_connecting;
+}
+
+bool wifi_manager_is_reconnecting(void)
+{
+    return s_persistent_reconnect;
+}
+
+int wifi_manager_get_reconnect_countdown(void)
+{
+    if (!s_persistent_reconnect) return 0;
+    int64_t rem = s_next_attempt_us - esp_timer_get_time();
+    if (rem < 0) rem = 0;
+    return (int)(rem / 1000000LL);
 }
