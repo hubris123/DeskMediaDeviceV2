@@ -89,6 +89,16 @@ static void exit_btn_cb(lv_event_t *e)
     lv_screen_load(GUI_Screen__home);
 }
 
+static void check_updates_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    ESP_LOGI(TAG, "Check for updates pressed");
+    audio_play_tick();
+    audio_music_set_paused(false);       // leaving settings
+    lv_screen_load(GUI_Screen__home);    // dialog appears over the home screen
+    ota_update_check_now();              // shows update prompt or "up to date"
+}
+
 // ── Zip code keyboard screen ──────────────────────────────────────────────────
 
 static void zipcode_field_cb(lv_event_t *e)
@@ -327,6 +337,30 @@ void settings_ui_init(void)
     lv_obj_add_event_cb(GUI_Button__settingswindow__button_1,
                         exit_btn_cb,
                         LV_EVENT_CLICKED, NULL);
+
+    // ── "Check for updates" button: orange/black, left of Save, 3 re-centered ─
+    {
+        lv_obj_t *upd = lv_button_create(GUI_Container__settingswindow__container_7);
+        lv_obj_set_size(upd, 120, 50);
+        lv_obj_align(upd, LV_ALIGN_CENTER, -150, 0);              // left of Save
+        lv_obj_set_style_bg_color(upd, lv_color_hex(0xE07A00), LV_PART_MAIN);  // orange
+        lv_obj_set_style_bg_opa(upd, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_radius(upd, 6, LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(upd, 0, LV_PART_MAIN);
+        lv_obj_set_ext_click_area(upd, 8);
+
+        lv_obj_t *ulbl = lv_label_create(upd);
+        lv_label_set_text(ulbl, "Check for\nUpdates");
+        lv_obj_set_style_text_color(ulbl, lv_color_black(), LV_PART_MAIN);     // black text
+        lv_obj_set_style_text_align(ulbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_center(ulbl);
+
+        lv_obj_add_event_cb(upd, check_updates_btn_cb, LV_EVENT_CLICKED, NULL);
+
+        // Re-center the existing Save / Exit so all three sit evenly in the row
+        lv_obj_align(GUI_Button__settingswindow__button_8, LV_ALIGN_CENTER,   0, 0);  // Save (center)
+        lv_obj_align(GUI_Button__settingswindow__button_1, LV_ALIGN_CENTER, 150, 0);  // Exit (right)
+    }
 
     // Brightness slider (slider_1) → live update + save on release
     lv_obj_add_event_cb(GUI_Slider__settingswindow__slider_1,

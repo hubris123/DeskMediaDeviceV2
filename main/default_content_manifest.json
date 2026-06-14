@@ -1,0 +1,5 @@
+{
+  "version": 0,
+  "comment": "Offline fallback only. The live list lives in the GitHub 'content' release as content_manifest.json. Each item: {\"file\": \"<name on SD>\", \"dest\": \"music|video\"}.",
+  "items": []
+}

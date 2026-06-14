@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #include "freertos/FreeRTOS.h"
@@ -41,6 +42,7 @@
 #include "lvgl.h"
 
 #include "video_player.h"
+#include "power_gate.h"
 
 static const char *TAG = "VideoPlayer";
 
@@ -48,9 +50,12 @@ static const char *TAG = "VideoPlayer";
 #define BUMPER_MJPEG        "/sdcard/video/bumper.mjpeg"
 #define BUMPER_MP3          "/sdcard/video/bumper.mp3"
 #define VIDEO_MAX_TRACKS    32
-#define VIDEO_BUF_SIZE      (10 * 1024 * 1024)  // main video PSRAM slot
+#define VIDEO_BUF_SIZE      (16 * 1024 * 1024)  // main video PSRAM slot (whole-file path)
 #define BUMPER_BUF_SIZE     (5  * 1024 * 1024)  // bumper PSRAM slot
 #define FRAME_INTERVAL_MS   50
+// Files larger than VIDEO_BUF_SIZE are streamed from SD instead of truncated:
+// video_buf doubles as a sliding window, refilled in chunks this size.
+#define STREAM_CHUNK        (256 * 1024)
 
 #define DISP_W  BSP_LCD_H_RES   // 480
 #define DISP_H  BSP_LCD_V_RES   // 800
@@ -97,6 +102,8 @@ static int  find_frame(const uint8_t *buf, size_t buf_len, size_t offset,
                        size_t *frame_start, size_t *frame_len);
 static void play_mjpeg(const uint8_t *mjpeg_data, size_t mjpeg_len,
                        jpeg_decode_cfg_t *dec_cfg);
+static void play_mjpeg_stream_file(const char *path, const char *mp3_path,
+                                   jpeg_decode_cfg_t *dec_cfg);
 
 extern void video_mp3_play(const char *path);
 extern void video_mp3_stop(void);
@@ -194,7 +201,20 @@ void video_player_start(void)
     if (video_track_count == 0 || jpeg_handle == NULL || decode_buf == NULL) {
         ESP_LOGW(TAG, "Not initialized or no tracks"); return;
     }
+    // Atomically claim the power gate so a network burst can't start alongside.
+    // Marks the gate AND video_player_running synchronously (before the task is
+    // even scheduled) so there's no window where video looks "not active".
+    if (!power_gate_video_try_begin()) {
+        ESP_LOGW(TAG, "Video held off — network update in progress");
+        return;
+    }
+    video_player_running = true;
     xTaskCreate(video_player_task, "video_play", 8192, NULL, 5, NULL);
+}
+
+bool video_player_is_active(void)
+{
+    return video_player_running;
 }
 
 static void shuffle_playlist(void)
@@ -287,6 +307,78 @@ static size_t render_first_frame(const uint8_t *mjpeg_data, size_t mjpeg_len,
     return frame_start + frame_len;
 }
 
+// ── Stream a (large) MJPEG straight from SD, decoding frame-by-frame ──────────
+// Used when a file exceeds VIDEO_BUF_SIZE so it is never truncated. video_buf
+// doubles as the sliding window: we read STREAM_CHUNK at a time, decode every
+// complete JPEG frame in the window, then slide the remainder and refill. Audio
+// starts after the first frame is shown (matches the whole-file path's sync).
+static void play_mjpeg_stream_file(const char *path, const char *mp3_path,
+                                   jpeg_decode_cfg_t *dec_cfg)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) { ESP_LOGE(TAG, "Stream: cannot open %s", path); return; }
+
+    size_t valid = 0;        // bytes currently in video_buf
+    size_t offset = 0;       // scan position within [0, valid)
+    bool   eof = false;
+    bool   audio_started = false;
+    int    frame_count = 0;
+    int64_t t0 = esp_timer_get_time();
+
+    while (true) {
+        size_t frame_start, frame_len;
+        if (find_frame(video_buf, valid, offset, &frame_start, &frame_len)) {
+            int64_t t_start = esp_timer_get_time();
+            void *target_fb = lcd_fb[fb_idx % CONFIG_BSP_LCD_DPI_BUFFER_NUMS];
+            uint32_t out_size = 0;
+            esp_err_t err = jpeg_decoder_process(
+                jpeg_handle, dec_cfg,
+                video_buf + frame_start, (uint32_t)frame_len,
+                target_fb, (size_t)DISP_W * DISP_H * 2, &out_size);
+            if (err == ESP_OK) {
+                esp_lv_adapter_dummy_draw_blit(g_lv_disp, 0, 0, DISP_W, DISP_H, target_fb, true);
+                fb_idx++;
+                if (!audio_started) {       // first frame on screen — sync audio in
+                    video_mp3_play(mp3_path);
+                    audio_started = true;
+                }
+            }
+            frame_count++;
+            offset = frame_start + frame_len;
+
+            int64_t elapsed_ms = (esp_timer_get_time() - t_start) / 1000;
+            int32_t delay_ms   = FRAME_INTERVAL_MS - (int32_t)elapsed_ms;
+            if (delay_ms > 1) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+            continue;
+        }
+
+        if (eof) break;   // no more complete frames and nothing left to read
+
+        // Need more data: slide the unconsumed tail to the front, then refill.
+        if (offset > 0) {
+            memmove(video_buf, video_buf + offset, valid - offset);
+            valid  -= offset;
+            offset  = 0;
+        }
+        if (valid >= VIDEO_BUF_SIZE) {
+            ESP_LOGE(TAG, "Stream: single frame exceeds %d MB window — aborting",
+                     VIDEO_BUF_SIZE / (1024 * 1024));
+            break;
+        }
+        size_t space = VIDEO_BUF_SIZE - valid;
+        size_t want  = space < STREAM_CHUNK ? space : STREAM_CHUNK;
+        size_t n = fread(video_buf + valid, 1, want, f);
+        valid += n;
+        if (n < want) eof = true;   // short read == end of file
+    }
+
+    fclose(f);
+    // We trashed video_buf's contents — mark the whole-file cache dirty.
+    video_buf_track = -1;
+    ESP_LOGI(TAG, "Stream: %d frames in %lld ms", frame_count,
+             (esp_timer_get_time() - t0) / 1000);
+}
+
 static void fade_overlay_anim_cb(void *obj, int32_t v)
 {
     lv_obj_set_style_bg_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
@@ -332,7 +424,7 @@ static void video_bg_load_task(void *arg)
 static void video_player_task(void *arg)
 {
     (void)arg;
-    video_player_running = true;
+    // video_player_running was set synchronously in video_player_start().
     ESP_LOGI(TAG, "Video player task started");
 
     esp_lv_adapter_pause(-1);
@@ -345,12 +437,26 @@ static void video_player_task(void *arg)
 
     int track_idx = video_current_idx;
 
+    // Derive the sidecar mp3 path and decide whole-file vs streaming up front.
+    char mp3_path[256];
+    strncpy(mp3_path, video_playlist[track_idx], sizeof(mp3_path) - 1);
+    mp3_path[sizeof(mp3_path) - 1] = '\0';
+    { char *ext = strrchr(mp3_path, '.'); if (ext) strcpy(ext, ".mp3"); }
+
+    struct stat st;
+    bool track_big = (stat(video_playlist[track_idx], &st) == 0 &&
+                      (size_t)st.st_size > VIDEO_BUF_SIZE);
+    if (track_big) {
+        ESP_LOGI(TAG, "Large video (%u KB) — streaming from SD: %s",
+                 (unsigned)(st.st_size / 1024), video_playlist[track_idx]);
+    }
+
     // ── Play bumper while loading the real video concurrently ────────────────
     if (bumper_available) {
         bool loaded = false;
 
-        if (video_buf_track != track_idx) {
-            // Kick off load in background before bumper starts
+        if (!track_big && video_buf_track != track_idx) {
+            // Kick off load in background before bumper starts (whole-file path only)
             s_bg_load_track = track_idx;
             s_bg_load_done  = false;
             s_bg_load_ok    = false;
@@ -378,13 +484,11 @@ static void video_player_task(void *arg)
         loaded = s_bg_load_ok;
 
         // Now play the real video
-        if (loaded && video_buf_len > 0) {
-            char mp3_path[256];
-            strncpy(mp3_path, video_playlist[track_idx], sizeof(mp3_path) - 1);
-            mp3_path[sizeof(mp3_path) - 1] = '\0';
-            char *ext = strrchr(mp3_path, '.');
-            if (ext) strcpy(ext, ".mp3");
-
+        if (track_big) {
+            ESP_LOGI(TAG, "Playing (stream): %s", video_playlist[track_idx]);
+            play_mjpeg_stream_file(video_playlist[track_idx], mp3_path, &dec_cfg);
+            ESP_LOGI(TAG, "Track done (streamed)");
+        } else if (loaded && video_buf_len > 0) {
             ESP_LOGI(TAG, "Playing: %s", video_playlist[track_idx]);
             size_t after_first = render_first_frame(video_buf, video_buf_len, &dec_cfg);
             video_mp3_play(mp3_path);
@@ -393,20 +497,19 @@ static void video_player_task(void *arg)
         }
 
     } else {
-        // No bumper — load and play directly
-        if (video_buf_track != track_idx) {
-            load_mjpeg_to_buf(video_playlist[track_idx], video_buf, VIDEO_BUF_SIZE, &video_buf_len);
-            video_buf_track = track_idx;
-        }
-        if (video_buf_len > 0) {
-            char mp3_path[256];
-            strncpy(mp3_path, video_playlist[track_idx], sizeof(mp3_path) - 1);
-            mp3_path[sizeof(mp3_path) - 1] = '\0';
-            char *ext = strrchr(mp3_path, '.');
-            if (ext) strcpy(ext, ".mp3");
-            size_t after_first = render_first_frame(video_buf, video_buf_len, &dec_cfg);
-            video_mp3_play(mp3_path);
-            play_mjpeg_from(video_buf, video_buf_len, &dec_cfg, after_first);
+        // No bumper — play directly
+        if (track_big) {
+            play_mjpeg_stream_file(video_playlist[track_idx], mp3_path, &dec_cfg);
+        } else {
+            if (video_buf_track != track_idx) {
+                load_mjpeg_to_buf(video_playlist[track_idx], video_buf, VIDEO_BUF_SIZE, &video_buf_len);
+                video_buf_track = track_idx;
+            }
+            if (video_buf_len > 0) {
+                size_t after_first = render_first_frame(video_buf, video_buf_len, &dec_cfg);
+                video_mp3_play(mp3_path);
+                play_mjpeg_from(video_buf, video_buf_len, &dec_cfg, after_first);
+            }
         }
     }
 
@@ -418,6 +521,7 @@ static void video_player_task(void *arg)
     esp_lv_adapter_set_dummy_draw(g_lv_disp, false);
     esp_lv_adapter_resume();
     video_player_running = false;
+    power_gate_video_end();   // release the gate so deferred network can proceed
 
     // Fade home screen in — queue via lv_async_call so it runs inside the LVGL task
     if (g_video_fade_overlay) {

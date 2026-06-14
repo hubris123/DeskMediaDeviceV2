@@ -29,6 +29,8 @@
 #include "GUI.h"
 #include "audio.h"
 #include "ota_update.h"
+#include "content_sync.h"
+#include "power_gate.h"
 #include "settings.h"
 #include "weather/weather_task.h"
 #include "weather/weather_data.h"
@@ -131,6 +133,10 @@ static void clock_timer_cb(lv_timer_t *t)
 // Forward declaration — anim_y_cb defined later in file
 static void anim_y_cb(void *obj, int32_t y);
 
+// Set when the user tries to start playback while a network burst is running;
+// drives the "WEATHER UPDATING - PLEASE WAIT" banner. Cleared once the burst ends.
+static volatile bool g_net_wait_warning = false;
+
 // ── Status bar animation complete — hide after slide-up ──────────────────────
 static void status_bar_hide_cb(lv_anim_t *a)
 {
@@ -162,9 +168,17 @@ static void weather_overlay_cb(lv_timer_t *t)
     // Dynamic countdown text needs a stable buffer (built fresh each tick below).
     static char s_reconnect_buf[48];
 
+    // Clear the playback-blocked warning once the network burst has finished.
+    if (!power_gate_net_busy()) g_net_wait_warning = false;
+
     const char *msg  = NULL;
 
-    if (connected && data_valid && !fetching) {
+    if (g_net_wait_warning && power_gate_net_busy()) {
+        // User tried to play a clip/track while a network update (weather, OTA,
+        // or content sync) was running — ask them to wait so the radio burst and
+        // playback don't peak together.
+        msg = "UPDATING - PLEASE WAIT";
+    } else if (connected && data_valid && !fetching) {
         // All good — hide overlay
     } else if (connected && (fetching || !data_valid)) {
         msg = "LOADING WEATHER DATA";
@@ -285,6 +299,12 @@ static void skull_touch_cb(lv_event_t *e)
 {
     (void)e;
     if (!g_system_ready) return;
+    if (power_gate_net_busy()) {
+        // A weather/OTA/content burst is on the air — don't peak on top of it.
+        g_net_wait_warning = true;
+        ESP_LOGW(TAG, "Video held off — network update in progress");
+        return;
+    }
     ESP_LOGI(TAG, "Skull logo touched — starting video player");
     video_player_start();
 }
@@ -334,7 +354,7 @@ static esp_err_t codec_init(void)
         return ESP_FAIL;
     }
     int saved_vol = nvs_load_volume(80);
-    esp_codec_dev_set_out_vol(spk_codec_dev, saved_vol);
+    audio_set_volume(saved_vol);   // routes through the 95% output cap
     bool saved_mute = nvs_load_mute(false);
     if (saved_mute) {
         esp_codec_dev_set_out_mute(spk_codec_dev, true);
@@ -480,7 +500,10 @@ void audio_set_volume(int percent)
 {
     if (spk_codec_dev == NULL) return;
     if (percent < 0) percent = 0;
-    if (percent > 100) percent = 100;
+    // Cap real output at 90%: high amp current browns out the board on the
+    // current supply (mp3 crashes). The slider still shows up to 100 — the top
+    // maps to 90.
+    if (percent > 90) percent = 90;
     esp_codec_dev_set_out_vol(spk_codec_dev, percent);
 }
 
@@ -489,6 +512,11 @@ void audio_set_mute(bool mute)
     if (spk_codec_dev == NULL) return;
     esp_codec_dev_set_out_mute(spk_codec_dev, mute);
     ESP_LOGI(TAG, "Speaker %s", mute ? "muted" : "unmuted");
+}
+
+bool music_panel_is_open(void)
+{
+    return music_player_open;
 }
 
 void audio_music_set_paused(bool paused)
@@ -701,6 +729,47 @@ static void anim_x_cb(void *obj, int32_t x)
 }
 
 // ── Open/close music player panel ────────────────────────────────────────────
+// ── Music panel auto-close ───────────────────────────────────────────────────
+// The power gate holds network off while the music panel is open, so the panel
+// must not stay open forever. It self-closes 30 s after the last interaction
+// (closing also stops playback), which bounds how long updates can be deferred.
+#define MUSIC_AUTOCLOSE_MS  30000
+static lv_timer_t *s_music_autoclose = NULL;
+static void music_player_toggle(void);   // forward decl
+
+static void music_autoclose_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (!music_player_open) {
+        if (s_music_autoclose) lv_timer_pause(s_music_autoclose);
+        return;
+    }
+    if (mp3_is_playing) {
+        // A track is still playing — never cut it off. Restart the countdown
+        // and re-check; the panel only closes once playback has stopped.
+        lv_timer_reset(s_music_autoclose);
+        return;
+    }
+    ESP_LOGI(TAG, "Music panel auto-closing (30s idle, nothing playing)");
+    music_player_toggle();   // slides closed
+    if (s_music_autoclose) lv_timer_pause(s_music_autoclose);
+}
+
+// Restart the 30 s countdown — called on open and on every panel interaction.
+static void music_autoclose_kick(void)
+{
+    if (!s_music_autoclose) {
+        s_music_autoclose = lv_timer_create(music_autoclose_cb, MUSIC_AUTOCLOSE_MS, NULL);
+    }
+    lv_timer_reset(s_music_autoclose);
+    lv_timer_resume(s_music_autoclose);
+}
+
+static void music_autoclose_stop(void)
+{
+    if (s_music_autoclose) lv_timer_pause(s_music_autoclose);
+}
+
 static void music_player_toggle(void)
 {
     music_player_open = !music_player_open;
@@ -740,6 +809,13 @@ static void music_player_toggle(void)
                              &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
             music_scroll_stop();
         }
+    }
+
+    // Arm/disarm the 30 s self-close so the panel (and the network hold) is bounded.
+    if (music_player_open) {
+        music_autoclose_kick();
+    } else {
+        music_autoclose_stop();
     }
 }
 
@@ -885,11 +961,18 @@ static void music_buttonplay_cb(lv_event_t *e)
 {
     (void)e;
     if (!g_system_ready || mp3_track_count == 0) return;
+    music_autoclose_kick();   // interaction — restart the 30 s self-close
     if (mp3_is_playing) {
         mp3_stop();
         lv_image_set_src(GUI_Image__home__image_35, &upload_play_6c36b149bbde4d87af41769e62ca887f_png);
         music_scroll_stop();
     } else {
+        if (power_gate_net_busy()) {
+            // Network update in flight — warn and don't start on top of it.
+            g_net_wait_warning = true;
+            ESP_LOGW(TAG, "MP3 held off — network update in progress");
+            return;
+        }
         char tracknum[4], title[128];
         mp3_parse_filename(mp3_playlist[mp3_current_track], tracknum, sizeof(tracknum),
                            title, sizeof(title));
@@ -903,6 +986,7 @@ static void music_buttonup_cb(lv_event_t *e)
 {
     (void)e;
     if (!g_system_ready || mp3_track_count == 0) return;
+    music_autoclose_kick();   // interaction — restart the 30 s self-close
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track - 1 + mp3_track_count) % mp3_track_count;
@@ -921,6 +1005,7 @@ static void music_buttondown_cb(lv_event_t *e)
 {
     (void)e;
     if (!g_system_ready || mp3_track_count == 0) return;
+    music_autoclose_kick();   // interaction — restart the 30 s self-close
     bool was_playing = mp3_is_playing;
     mp3_stop();
     mp3_current_track = (mp3_current_track + 1) % mp3_track_count;
@@ -957,6 +1042,9 @@ static void music_watchdog_cb(lv_timer_t *t)
         if (music_scroll_active) {
             music_scroll_stop();
         }
+        // Playback just ended — start the 30 s close countdown from here so the
+        // panel only closes after a track finishes, never mid-song.
+        if (music_player_open) music_autoclose_kick();
     }
     mp3_was_playing = mp3_is_playing;
 }
@@ -1268,6 +1356,7 @@ void app_main(void)
     // System proven healthy: cancel any pending OTA rollback, start update checks
     ota_update_mark_boot_valid();
     ota_update_start();
+    content_sync_start();   // background: pull new media from the "content" release onto SD
 
     weather_data_t api_data = {0};
     uint32_t last_displayed_update = 0;

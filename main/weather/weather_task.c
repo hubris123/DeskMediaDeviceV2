@@ -2,6 +2,7 @@
 #include "weather_api.h"
 #include "nws_api.h"
 #include "nvs_storage.h"
+#include "power_gate.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -159,13 +160,19 @@ static void weather_task_main(void *param)
                         ESP_LOGW(TAG, "WiFi not ready — skipping geocode");
                         continue;
                     }
+                    // Power interlock: geocode + grid are HTTP too. Hold off until
+                    // no video is playing and the user is idle so these don't peak
+                    // alongside playback (this path fires on boot and on reconnect).
+                    power_gate_net_wait_and_begin();
                     if (weather_geocode_zipcode(msg.data.zip, &g_state.location) != ESP_OK) {
                         ESP_LOGE(TAG, "Geocode failed for %s", msg.data.zip);
+                        power_gate_net_end();
                         continue;
                     }
                     nvs_store_location(&g_state.location);
                     g_state.grid_valid = false;
                     resolve_and_cache_grid();
+                    power_gate_net_end();
                     g_state.force_full_fetch = true;
                     break;
                 }
@@ -191,10 +198,14 @@ static void weather_task_main(void *param)
             continue;
         }
 
+        // Power interlock: hold off until no video is playing and the user has
+        // been idle ~30s, so this HTTP burst never stacks on a video's peak draw.
+        power_gate_net_wait_and_begin();
+
         // Resolve grid if we have a location but no grid (e.g. first boot after WiFi)
         if (!g_state.grid_valid) {
             resolve_and_cache_grid();
-            if (!g_state.grid_valid) continue;
+            if (!g_state.grid_valid) { power_gate_net_end(); continue; }
         }
 
         s_fetching = true;
@@ -211,6 +222,7 @@ static void weather_task_main(void *param)
         }
 
         s_fetching = false;
+        power_gate_net_end();
 
         ESP_LOGI(TAG, "Tick %lu: obs%s", (unsigned long)g_state.obs_tick,
                  do_forecast ? " + forecast" : "");

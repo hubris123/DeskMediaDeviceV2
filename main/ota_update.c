@@ -1,8 +1,10 @@
 #include "ota_update.h"
 #include "wifi_manager.h"
 #include "nvs_storage.h"
+#include "power_gate.h"
 
 #include <string.h>
+#include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -27,6 +29,7 @@ LV_FONT_DECLARE(title_1);           // 17px UI font
 #define OTA_FIRST_CHECK_DELAY_MS  (60 * 1000)
 #define OTA_RECHECK_PERIOD_MS     (24 * 60 * 60 * 1000)
 #define OTA_API_BUF_SIZE          (16 * 1024)
+#define OTA_SNOOZE_SEC            (5LL * 24 * 60 * 60)   // "Later" hushes a version for 5 days
 
 static char s_new_tag[64];
 static char s_bin_url[512];
@@ -198,6 +201,11 @@ static void prompt_btn_cb(lv_event_t *e)
     if (install) {
         s_install_requested = true;
         xTaskCreate(ota_install_task, "ota_install", 8192, NULL, 5, NULL);
+    } else {
+        // "Later" — hush this exact version for 5 days (auto-check honors it;
+        // a manual "Check for updates" ignores it, and a newer tag re-prompts).
+        nvs_store_ota_snooze(s_new_tag, (long long)time(NULL));
+        ESP_LOGI(TAG, "Update %s snoozed for 5 days", s_new_tag);
     }
     s_prompt_open = false;
     // Async: deleting the msgbox synchronously from inside its own button's
@@ -271,6 +279,112 @@ static void show_update_prompt(void)
     bsp_display_unlock();
 }
 
+// ── "No updates" / "couldn't check" dialog (single OK button) ────────────────
+
+static void dialog_ok_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+    lv_obj_t *mbox = lv_obj_get_parent(lv_obj_get_parent(btn));
+    s_prompt_open = false;
+    lv_msgbox_close_async(mbox);
+}
+
+// latest == NULL → couldn't reach the server; otherwise "up to date".
+static void show_no_update_dialog(const char *running, const char *latest)
+{
+    if (s_prompt_open) return;
+    s_prompt_open = true;
+
+    bsp_display_lock(-1);
+    lv_obj_t *mbox = lv_msgbox_create(NULL);
+    lv_obj_set_style_bg_color(mbox, lv_color_hex(0x0A0A0A), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(mbox, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(mbox, lv_color_hex(0x3A3A3A), LV_PART_MAIN);
+    lv_obj_set_style_border_width(mbox, 2, LV_PART_MAIN);
+    lv_obj_set_style_radius(mbox, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(mbox, 14, LV_PART_MAIN);
+    lv_obj_set_width(mbox, 330);
+
+    lv_obj_t *title = lv_msgbox_add_title(mbox, "Check for Updates");
+    lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &header_1, LV_PART_MAIN);
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_width(title, lv_pct(100));
+
+    char msg[200];
+    if (latest) {
+        snprintf(msg, sizeof(msg),
+                 "You're up to date.\n\nRunning: %s\nLatest:  %s", running, latest);
+    } else {
+        snprintf(msg, sizeof(msg),
+                 "Couldn't reach the update server.\nCheck WiFi and try again.");
+    }
+    lv_obj_t *text = lv_msgbox_add_text(mbox, msg);
+    lv_obj_set_style_text_color(text, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
+    lv_obj_set_style_text_font(text, &title_1, LV_PART_MAIN);
+    lv_obj_set_style_text_align(text, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_width(text, lv_pct(100));
+    lv_obj_set_style_pad_bottom(text, 14, LV_PART_MAIN);
+
+    lv_obj_set_style_bg_opa(lv_msgbox_get_header(mbox), LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lv_msgbox_get_content(mbox), LV_OPA_TRANSP, LV_PART_MAIN);
+
+    lv_obj_t *ok = lv_msgbox_add_footer_button(mbox, "OK");
+    lv_obj_t *footer = lv_msgbox_get_footer(mbox);
+    if (footer) lv_obj_set_style_bg_opa(footer, LV_OPA_TRANSP, LV_PART_MAIN);
+    style_prompt_button(ok, lv_color_hex(0x2E2E2E));
+    lv_obj_add_event_cb(ok, dialog_ok_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_center(mbox);
+    bsp_display_unlock();
+}
+
+// ── Evaluate a fetched release and act ───────────────────────────────────────
+// manual=true: user pressed "Check for updates" — ignore the snooze and always
+// give feedback (update prompt, or the "up to date" dialog). manual=false: the
+// daily auto-check — honor the 5-day "Later" snooze and stay silent otherwise.
+static void ota_decide(esp_err_t fetch_ret, const char *tag, const char *url, bool manual)
+{
+    if (fetch_ret != ESP_OK) {
+        ESP_LOGW(TAG, "Release check failed (no release yet, or network)");
+        if (manual) show_no_update_dialog(NULL, NULL);
+        return;
+    }
+
+    const char *running = esp_app_get_description()->version;
+    char installed[64] = "";
+    char pending[64] = "";
+    ota_get_installed_tag(installed, sizeof(installed));     // hash-validated
+    nvs_load_fw_tag_pending(pending, sizeof(pending));
+    ESP_LOGI(TAG, "Latest release: %s (running: %s, installed: %s, attempted: %s, manual=%d)",
+             tag, running, installed[0] ? installed : "none",
+             pending[0] ? pending : "none", (int)manual);
+
+    bool is_update = strcmp(tag, running) != 0 &&
+                     strcmp(tag, installed) != 0 &&
+                     strcmp(tag, pending) != 0;
+    if (!is_update) {
+        if (manual) show_no_update_dialog(running, tag);
+        return;
+    }
+
+    if (!manual) {
+        // Auto-check honors a 5-day "Later" snooze for this exact tag.
+        char snz[64] = "";
+        long long at = 0;
+        if (nvs_load_ota_snooze(snz, sizeof(snz), &at) == ESP_OK && strcmp(snz, tag) == 0) {
+            long long now = (long long)time(NULL);
+            if (now > 1700000000LL && (now - at) < OTA_SNOOZE_SEC) {
+                ESP_LOGI(TAG, "Update %s snoozed — skipping prompt", tag);
+                return;
+            }
+        }
+    }
+
+    strlcpy(s_new_tag, tag, sizeof(s_new_tag));
+    strlcpy(s_bin_url, url, sizeof(s_bin_url));
+    show_update_prompt();
+}
+
 // ── Check task ───────────────────────────────────────────────────────────────
 
 static void ota_check_task(void *arg)
@@ -280,31 +394,36 @@ static void ota_check_task(void *arg)
 
     for (;;) {
         if (wifi_manager_is_connected() && !s_install_requested) {
+            // Power interlock: wait for no video/music + idle before the check.
+            // The update prompt also touches LVGL (paused during video), so this
+            // keeps both off the air while a clip is playing.
+            power_gate_net_wait_and_begin();
             char tag[sizeof(s_new_tag)] = "";
             char url[sizeof(s_bin_url)] = "";
-            if (fetch_latest_release(tag, sizeof(tag), url, sizeof(url)) == ESP_OK) {
-                const char *running = esp_app_get_description()->version;
-                char installed[64] = "";
-                char pending[64] = "";
-                ota_get_installed_tag(installed, sizeof(installed)); // hash-validated
-                nvs_load_fw_tag_pending(pending, sizeof(pending));
-                ESP_LOGI(TAG, "Latest release: %s (running: %s, installed: %s, attempted: %s)",
-                         tag, running, installed[0] ? installed : "none",
-                         pending[0] ? pending : "none");
-                // Skip if already running it, confirmed-installed, or it was
-                // attempted and (after a rollback) shouldn't be retried.
-                if (strcmp(tag, running) != 0 && strcmp(tag, installed) != 0 &&
-                    strcmp(tag, pending) != 0) {
-                    strlcpy(s_new_tag, tag, sizeof(s_new_tag));
-                    strlcpy(s_bin_url, url, sizeof(s_bin_url));
-                    show_update_prompt();
-                }
-            } else {
-                ESP_LOGW(TAG, "Release check failed (no release yet, or network)");
-            }
+            esp_err_t check = fetch_latest_release(tag, sizeof(tag), url, sizeof(url));
+            power_gate_net_end();
+            ota_decide(check, tag, url, false);
         }
         vTaskDelay(pdMS_TO_TICKS(OTA_RECHECK_PERIOD_MS));
     }
+}
+
+// ── Manual "Check for updates" (from settings) ───────────────────────────────
+// Runs promptly and bypasses both the snooze and the power gate: the user is
+// actively waiting and isn't playing media when they tap it.
+static void ota_manual_check_task(void *arg)
+{
+    (void)arg;
+    if (!wifi_manager_is_connected()) {
+        show_no_update_dialog(NULL, NULL);
+        vTaskDelete(NULL);
+        return;
+    }
+    char tag[sizeof(s_new_tag)] = "";
+    char url[sizeof(s_bin_url)] = "";
+    esp_err_t check = fetch_latest_release(tag, sizeof(tag), url, sizeof(url));
+    ota_decide(check, tag, url, true);
+    vTaskDelete(NULL);
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -312,6 +431,12 @@ static void ota_check_task(void *arg)
 void ota_update_start(void)
 {
     xTaskCreate(ota_check_task, "ota_check", 8192, NULL, 3, NULL);
+}
+
+void ota_update_check_now(void)
+{
+    if (s_prompt_open || s_install_requested) return;   // a dialog is already up
+    xTaskCreate(ota_manual_check_task, "ota_manual", 8192, NULL, 4, NULL);
 }
 
 void ota_update_mark_boot_valid(void)

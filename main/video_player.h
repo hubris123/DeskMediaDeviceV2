@@ -28,6 +28,13 @@ void video_player_init(void);
  */
 void video_player_start(void);
 
+/**
+ * True while a video is playing (the player task is running). Background
+ * network tasks (OTA, content sync) poll this and hold off until it's false,
+ * so a WiFi radio burst never stacks on top of the video's peak current draw.
+ */
+bool video_player_is_active(void);
+
 #ifdef __cplusplus
 }
 #endif

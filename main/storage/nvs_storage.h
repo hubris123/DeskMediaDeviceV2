@@ -103,4 +103,10 @@ esp_err_t nvs_load_fw_tag_pending(char *buf, size_t len);
 esp_err_t nvs_store_fw_tag_ver(const char *ver);
 esp_err_t nvs_load_fw_tag_ver(char *buf, size_t len);
 
+// ── OTA update snooze ────────────────────────────────────────────────────────
+// When the user taps "Later" on an update, we remember that tag + the epoch
+// time so the auto-checker won't nag again for ~5 days (or until a newer tag).
+esp_err_t nvs_store_ota_snooze(const char *tag, long long when_epoch);
+esp_err_t nvs_load_ota_snooze(char *tag, size_t len, long long *when_epoch);
+
 #endif // NVS_STORAGE_H

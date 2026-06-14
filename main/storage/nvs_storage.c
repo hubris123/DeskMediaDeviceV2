@@ -420,6 +420,28 @@ esp_err_t nvs_load_fw_tag_pending(char *buf, size_t len)
     return nvs_get_str(nvs_h, "fw_tag_pend", buf, &len);
 }
 
+// ── OTA update snooze (set when the user taps "Later") ───────────────────────
+
+esp_err_t nvs_store_ota_snooze(const char *tag, long long when_epoch)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    esp_err_t ret = nvs_set_str(nvs_h, "ota_snz_tag", tag);
+    ret |= nvs_set_i64(nvs_h, "ota_snz_at", (int64_t)when_epoch);
+    ret |= nvs_commit(nvs_h);
+    return ret;
+}
+
+esp_err_t nvs_load_ota_snooze(char *tag, size_t len, long long *when_epoch)
+{
+    if (!nvs_initialized) return ESP_FAIL;
+    esp_err_t ret = nvs_get_str(nvs_h, "ota_snz_tag", tag, &len);
+    if (ret != ESP_OK) return ret;
+    int64_t at = 0;
+    ret = nvs_get_i64(nvs_h, "ota_snz_at", &at);
+    if (when_epoch) *when_epoch = (long long)at;
+    return ret;
+}
+
 // ── Display wedge self-restart flag ───────────────────────────────────────────
 // Set just before the wedge detector's esp_restart(); consumed on next boot.
 // Lives in NVS because nothing else survives every reset type on this board.

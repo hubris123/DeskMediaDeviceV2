@@ -18,6 +18,14 @@
 /** Start the background check task. Call once after the UI is up. */
 void ota_update_start(void);
 
+/**
+ * Run an immediate "check for updates" (from the settings button). Ignores the
+ * 5-day "Later" snooze and the power gate, and always gives feedback: the
+ * Install/Later prompt if an update exists, or an "up to date" dialog if not.
+ * Spawns its own task; safe to call from an LVGL event callback.
+ */
+void ota_update_check_now(void);
+
 /** Mark the running image good (cancels pending rollback). Idempotent. */
 void ota_update_mark_boot_valid(void);
 

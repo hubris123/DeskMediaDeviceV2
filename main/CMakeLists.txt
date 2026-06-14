@@ -15,6 +15,10 @@ idf_component_register(
         weather_icons.c
         weather_display.c
         ota_update.c
+        content_sync.c
+        power_gate.c
+    EMBED_TXTFILES
+        default_content_manifest.json
     INCLUDE_DIRS
         .
         weather

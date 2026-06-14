@@ -27,6 +27,14 @@ void audio_set_mute(bool mute);
 void audio_music_set_paused(bool paused);
 
 /**
+ * True while the music player panel is open/usable on the home screen. The
+ * power gate reads this so a network burst can't run while the user is in the
+ * music player (amp current + radio burst browns out). The panel self-closes
+ * after ~30 s so this can't defer updates indefinitely.
+ */
+bool music_panel_is_open(void);
+
+/**
  * Play the WAV file from SD card (non-blocking).
  * Used by the volume slider preview.
  */
