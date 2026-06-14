@@ -12,3 +12,11 @@ imagecapture/
 
 # Serial boot captures
 boot_log*.txt
+soak_log*.txt
+
+# Bundled ffmpeg build (large third-party binaries — download separately, not tracked)
+windowsapps/converter/*.7z
+windowsapps/converter/ffmpeg.exe
+windowsapps/converter/ffplay.exe
+windowsapps/converter/ffprobe.exe
+windowsapps/converter/ffmpeg-*-full_build/

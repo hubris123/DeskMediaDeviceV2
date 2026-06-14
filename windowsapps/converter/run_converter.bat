@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-pythonw sd_converter.py
+start "" pythonw sd_converter.pyw

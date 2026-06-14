@@ -5,14 +5,17 @@ Converts music and video files to the correct format for the SD card.
 Requirements:
   - ffmpeg.exe must be in the same folder as this script (or the .exe)
 
-Music output  → /sdcard/music/  : 32kHz stereo 128kbps MP3 + 0.5s adelay, numbered "01 - Title.mp3"
-Video output  → /sdcard/video/  : 480x800 MJPEG @ 20fps + 32kHz stereo 128kbps MP3 (no adelay)
-Bumper output → /sdcard/video/  : same as video but saved as bumper.mjpeg / bumper.mp3
+Music output  → /sdcard/music/  : 32kHz stereo 128kbps MP3 + 0.5s adelay, metadata stripped, numbered "01 - Title.mp3"
+Video output  → /sdcard/video/  : 480x800 MJPEG @ 20fps + 32kHz stereo 128kbps MP3, metadata stripped (no adelay)
+                                   Note: bumper videos must be under 5MB.
 """
 
 import sys
+import re
 import os
 import subprocess
+import time
+import tempfile
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -34,29 +37,86 @@ def ffmpeg_available():
 
 def run_ffmpeg(args, log_cb):
     """Run ffmpeg with given args list, stream output to log_cb."""
-    cmd = [FFMPEG, "-y"] + args
+    # -nostdin: never let ffmpeg block waiting for a "Press [q] to stop" keypress.
+    cmd = [FFMPEG, "-nostdin", "-y"] + args
     log_cb(f"Running: {' '.join(cmd)}\n")
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    )
-    for line in proc.stdout:
-        log_cb(line)
-    proc.wait()
+    # NO PIPE: ffmpeg writes its output to a temp file; we poll that file and
+    # stream new content to the log. Pipes under pythonw on Windows can deadlock
+    # on ffmpeg's slow, \r-terminated progress output (especially during the
+    # loudnorm analysis pass), which made the app appear frozen. A temp log file
+    # removes pipes entirely, so there is nothing to deadlock on.
+    log_fd, log_path = tempfile.mkstemp(prefix="ffmpeg_", suffix=".log")
+
+    def stream_log(stop_evt):
+        """Tail the temp log file and forward new lines to the GUI."""
+        pos = 0
+        carry = ""
+        while True:
+            try:
+                with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+                    fh.seek(pos)
+                    data = fh.read()
+                    pos = fh.tell()
+            except OSError:
+                data = ""
+            if data:
+                # ffmpeg uses \r for progress; treat it like a newline
+                carry += data.replace("\r", "\n")
+                *lines, carry = carry.split("\n")
+                for ln in lines:
+                    log_cb(ln + "\n")
+            if stop_evt.is_set():
+                # final drain
+                try:
+                    with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+                        fh.seek(pos)
+                        rest = fh.read()
+                except OSError:
+                    rest = ""
+                rest = (carry + rest).replace("\r", "\n")
+                for ln in rest.split("\n"):
+                    if ln:
+                        log_cb(ln + "\n")
+                return
+            time.sleep(0.1)
+
+    stop_evt = threading.Event()
+    with os.fdopen(log_fd, "w", encoding="utf-8", errors="replace") as out_fh:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,   # detach stdin so ffmpeg can't hang on it
+            stdout=out_fh,
+            stderr=subprocess.STDOUT,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        )
+        reader = threading.Thread(target=stream_log, args=(stop_evt,), daemon=True)
+        reader.start()
+        proc.wait()
+        stop_evt.set()
+        reader.join(timeout=2)
+
+    try:
+        os.remove(log_path)
+    except OSError:
+        pass
     return proc.returncode
 
 
 def convert_music(input_path, output_dir, track_num, title, log_cb):
-    """Convert a music file to 32kHz stereo 128kbps MP3 with 0.5s adelay."""
-    out_name = f"{track_num:02d} - {title}.mp3"
+    """Convert a music file to 32kHz stereo 128kbps MP3 with 0.5s adelay,
+    loudness-normalized to -16 LUFS / -3.5 dBTP."""
+    # If the title already starts with a "NN - " track prefix, don't add another.
+    if re.match(r"^\d{1,2}\s*-\s*", title):
+        out_name = f"{title}.mp3"
+    else:
+        out_name = f"{track_num:02d} - {title}.mp3"
     out_path = os.path.join(output_dir, "music", out_name)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     ret = run_ffmpeg([
         "-i", input_path,
-        "-af", "adelay=500|500",
+        "-map", "0:a",
+        "-map_metadata", "-1",
+        "-af", "loudnorm=I=-16:TP=-3.5:LRA=11,adelay=500|500",
         "-ac", "2",
         "-ar", "32000",
         "-ab", "128k",
@@ -71,8 +131,8 @@ def convert_music(input_path, output_dir, track_num, title, log_cb):
 
 
 def convert_video(input_path, output_dir, track_num, title, log_cb):
-    """Convert a video to MJPEG + MP3 pair (no adelay)."""
-    base = f"{track_num:02d} - {title}"
+    """Convert a video to MJPEG + MP3 pair (no adelay). Filename is the title only."""
+    base = title
     video_out = os.path.join(output_dir, "video", base + ".mjpeg")
     audio_out = os.path.join(output_dir, "video", base + ".mp3")
     os.makedirs(os.path.dirname(video_out), exist_ok=True)
@@ -81,7 +141,7 @@ def convert_video(input_path, output_dir, track_num, title, log_cb):
     ret = run_ffmpeg([
         "-i", input_path,
         "-c:v", "mjpeg",
-        "-q:v", "5",
+        "-q:v", "9",
         "-vf", "transpose=1,scale=480:800",
         "-r", "20",
         "-an",
@@ -95,6 +155,9 @@ def convert_video(input_path, output_dir, track_num, title, log_cb):
     ret = run_ffmpeg([
         "-i", input_path,
         "-vn",
+        "-map", "0:a",
+        "-map_metadata", "-1",
+        "-af", "loudnorm=I=-16:TP=-3.5:LRA=11",
         "-ac", "2",
         "-ar", "32000",
         "-ab", "128k",
@@ -108,41 +171,6 @@ def convert_video(input_path, output_dir, track_num, title, log_cb):
     return ret == 0
 
 
-def convert_bumper(input_path, output_dir, log_cb):
-    """Convert a video to bumper.mjpeg + bumper.mp3 (keep under 5MB, no adelay)."""
-    video_out = os.path.join(output_dir, "video", "bumper.mjpeg")
-    audio_out = os.path.join(output_dir, "video", "bumper.mp3")
-    os.makedirs(os.path.dirname(video_out), exist_ok=True)
-
-    ret = run_ffmpeg([
-        "-i", input_path,
-        "-c:v", "mjpeg",
-        "-q:v", "5",
-        "-vf", "transpose=1,scale=480:800",
-        "-r", "20",
-        "-an",
-        video_out
-    ], log_cb)
-    if ret != 0:
-        log_cb(f"✗ Bumper video FAILED\n\n")
-        return False
-
-    ret = run_ffmpeg([
-        "-i", input_path,
-        "-vn",
-        "-ac", "2",
-        "-ar", "32000",
-        "-ab", "128k",
-        "-codec:a", "libmp3lame",
-        audio_out
-    ], log_cb)
-    if ret == 0:
-        log_cb(f"✓ Bumper done: bumper.mjpeg + bumper.mp3\n\n")
-    else:
-        log_cb(f"✗ Bumper audio FAILED\n\n")
-    return ret == 0
-
-
 # ── GUI ───────────────────────────────────────────────────────────────────────
 
 class ConverterApp(tk.Tk):
@@ -153,7 +181,7 @@ class ConverterApp(tk.Tk):
         self.configure(bg="#1e1e1e")
 
         self.output_dir = tk.StringVar(value="")
-        self.mode = tk.StringVar(value="music")  # music | video | bumper
+        self.mode = tk.StringVar(value="music")  # music | video
 
         # Queue of (input_path, track_num, title) tuples
         self.queue = []
@@ -193,7 +221,7 @@ class ConverterApp(tk.Tk):
         mode_frame = tk.Frame(self, bg=BG, pady=PAD, padx=PAD)
         mode_frame.pack(fill="x")
         label(mode_frame, "Mode:").pack(side="left", padx=(0, 8))
-        for val, txt in [("music", "Music"), ("video", "Video"), ("bumper", "Bumper (intro)")]:
+        for val, txt in [("music", "Music"), ("video", "Video")]:
             rb = tk.Radiobutton(mode_frame, text=txt, variable=self.mode, value=val,
                                 bg=BG, fg=FG, selectcolor="#3a3a3a", activebackground=BG,
                                 activeforeground=FG, font=FONT, command=self._on_mode_change)
@@ -219,7 +247,7 @@ class ConverterApp(tk.Tk):
         cols_frame = tk.Frame(queue_frame, bg=BG)
         cols_frame.pack(fill="x", pady=4)
 
-        # Track # (hidden for bumper)
+        # Track # (Music only)
         self.track_label = label(cols_frame, "Track #")
         self.track_label.pack(side="left", padx=(0, 6))
         self.track_num_var = tk.StringVar(value="1")
@@ -229,7 +257,8 @@ class ConverterApp(tk.Tk):
                                       relief="flat", font=FONT)
         self.track_entry.pack(side="left", padx=(0, 12))
 
-        label(cols_frame, "Title").pack(side="left", padx=(0, 6))
+        self.title_label = label(cols_frame, "Title")
+        self.title_label.pack(side="left", padx=(0, 6))
         self.title_var = tk.StringVar()
         self.title_entry = entry(cols_frame, self.title_var, width=24)
         self.title_entry.pack(side="left", padx=(0, 10))
@@ -271,16 +300,19 @@ class ConverterApp(tk.Tk):
     def _on_mode_change(self):
         mode = self.mode.get()
         descs = {
-            "music":  "Music: converts to 32kHz stereo 128kbps MP3 with 0.5s silence. Output → output_folder/music/",
-            "video":  "Video: converts to 480×800 MJPEG @ 20fps + 32kHz MP3. Output → output_folder/video/",
-            "bumper": "Bumper: same as video but saved as bumper.mjpeg + bumper.mp3. No track number needed.",
+            "music":  "Music: converts to 32kHz stereo 128kbps MP3 with 0.5s silence, metadata stripped. Output → output_folder/music/",
+            "video":  "Video: converts to 480×800 MJPEG @ 20fps + 32kHz MP3, metadata stripped. Output → output_folder/video/   ⚠ Bumper videos must be under 5MB.",
         }
         self.mode_desc.config(text=descs[mode])
 
-        is_bumper = (mode == "bumper")
-        state = "disabled" if is_bumper else "normal"
-        self.track_label.config(fg="#555555" if is_bumper else "#e0e0e0")
-        self.track_entry.config(state=state)
+        # Track # only applies to Music — hide the field entirely otherwise
+        is_music = (mode == "music")
+        if is_music:
+            self.track_label.pack(side="left", padx=(0, 6), before=self.title_label)
+            self.track_entry.pack(side="left", padx=(0, 12), before=self.title_label)
+        else:
+            self.track_label.pack_forget()
+            self.track_entry.pack_forget()
 
         self._clear_queue()
 
@@ -303,18 +335,21 @@ class ConverterApp(tk.Tk):
                 # Default title from filename
                 title = os.path.splitext(os.path.basename(path))[0]
 
-            if mode == "bumper":
-                entry = {"path": path, "mode": "bumper", "track": 0, "title": "bumper"}
-                display = f"[bumper] {os.path.basename(path)}"
-            else:
+            if mode == "music":
                 try:
                     track = int(self.track_num_var.get())
                 except ValueError:
                     track = len(self.queue) + 1
-                entry = {"path": path, "mode": mode, "track": track, "title": title}
-                display = f"[{mode}] {track:02d} - {title}  ← {os.path.basename(path)}"
                 # Auto-increment track number
                 self.track_num_var.set(str(track + 1))
+            else:  # video — number sequentially by queue position
+                track = len(self.queue) + 1
+
+            entry = {"path": path, "mode": mode, "track": track, "title": title}
+            if mode == "music":
+                display = f"[music] {track:02d} - {title}  ← {os.path.basename(path)}"
+            else:
+                display = f"[video] {title}  ← {os.path.basename(path)}"
 
             self.queue.append(entry)
             self.listbox.insert("end", display)
@@ -371,14 +406,12 @@ class ConverterApp(tk.Tk):
             track = item["track"]
             title = item["title"]
 
-            self._log(f"── {os.path.basename(path)} ──────────────────────\n")
+            self._log(f"\u2500\u2500 {os.path.basename(path)} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n")
 
             if mode == "music":
                 ok = convert_music(path, output_dir, track, title, self._log)
             elif mode == "video":
                 ok = convert_video(path, output_dir, track, title, self._log)
-            elif mode == "bumper":
-                ok = convert_bumper(path, output_dir, self._log)
             else:
                 ok = False
 
@@ -394,7 +427,7 @@ class ConverterApp(tk.Tk):
         self.running = False
         self.convert_btn.config(state="normal", text="Convert All")
 
-    # ── FFmpeg check ──────────────────────────────────────────────────────────
+    # \u2500\u2500 FFmpeg check \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
     def _check_ffmpeg(self):
         if not ffmpeg_available():
