@@ -92,25 +92,20 @@ static int32_t g_utc_offset_seconds = 0;
 static lv_obj_t *s_weather_overlay     = NULL;
 static lv_obj_t *s_weather_overlay_lbl = NULL;
 
-// ── Memory display label ──────────────────────────────────────────────────────
-static lv_obj_t *mem_label = NULL;
-
 // ── Home screen timer handles — reset after video playback to prevent burst ──
 static lv_timer_t *s_clock_timer         = NULL;
 static lv_timer_t *s_music_watchdog_timer = NULL;
-static lv_timer_t *s_mem_label_timer     = NULL;
 static lv_timer_t *s_weather_overlay_timer = NULL;
 
-static void mem_label_cb(lv_timer_t *t)
+// Reset the always-on home-screen timers after a video. While LVGL is paused
+// for playback their "due" time keeps accumulating, so on resume they would all
+// fire at once — a CPU spike right at the video→home transition. Must run in the
+// LVGL task (called from trigger_fade_in via lv_async_call).
+void home_timers_reset_after_video(void)
 {
-    (void)t;
-    if (!mem_label) return;
-    if (lv_scr_act() != GUI_Screen__home) return;
-    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    size_t free_psram    = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    lv_label_set_text_fmt(mem_label, "INT:%uK PSRAM:%uK",
-                          (unsigned)(free_internal / 1024),
-                          (unsigned)(free_psram    / 1024));
+    if (s_clock_timer)           lv_timer_reset(s_clock_timer);
+    if (s_music_watchdog_timer)  lv_timer_reset(s_music_watchdog_timer);
+    if (s_weather_overlay_timer) lv_timer_reset(s_weather_overlay_timer);
 }
 
 // ── 1-second LVGL timer to update the clock ──────────────────────────────────
@@ -127,6 +122,11 @@ static void clock_timer_cb(lv_timer_t *t)
     char tmp[16] = {0};
     strftime(tmp, sizeof(tmp), "%I:%M%p", tm_info);
     const char *ts = (tmp[0] == '0') ? tmp + 1 : tmp;
+    // The displayed value (h:mm AM/PM) only changes once a minute — skip the
+    // label re-render on the other ~59 ticks per minute.
+    static char s_last_ts[16] = "";
+    if (strcmp(ts, s_last_ts) == 0) return;
+    strlcpy(s_last_ts, ts, sizeof(s_last_ts));
     lv_label_set_text(GUI_Label__home__CURRENTTIMEQ, ts);
 }
 
@@ -464,9 +464,6 @@ static void scan_sd_card(void)
     ESP_LOGI(TAG, "Loaded %d MP3 track(s) from /sdcard/music", mp3_track_count);
 }
 
-static void stop_callback(lv_event_t *e)      { is_playing = false; ESP_LOGI(TAG, "Audio stopped"); }
-
-
 // ── Public audio API ─────────────────────────────────────────────────────────
 
 static void tick_task(void *arg)
@@ -477,17 +474,22 @@ static void tick_task(void *arg)
     // A PAUSED mp3 task isn't writing, so ticks are fine (settings screen relies on this).
     if (mp3_is_playing && !mp3_pause_requested) { vTaskDelete(NULL); return; }
 
-    // Generate a short 880Hz sine burst (20ms @ 32kHz = 640 samples)
-    const int SAMPLES = 640;
-    int16_t buf[SAMPLES * 2]; // stereo
-    for (int i = 0; i < SAMPLES; i++) {
-        float t = (float)i / (float)AUDIO_SAMPLE_RATE;
-        float env = (i < 160) ? (float)i / 160.0f : (float)(SAMPLES - i) / (float)(SAMPLES - 160);
-        int16_t s = (int16_t)(env * 8000.0f * sinf(2.0f * 3.14159f * 880.0f * t));
-        buf[i * 2]     = s;
-        buf[i * 2 + 1] = s;
+    // Short 880Hz sine burst (20ms @ 32kHz = 640 samples), built once and reused:
+    // the waveform is constant, so there's no need to recompute 640 sinf per tap.
+    static const int SAMPLES = 640;
+    static int16_t s_tick_pcm[640 * 2]; // stereo
+    static bool s_tick_built = false;
+    if (!s_tick_built) {
+        for (int i = 0; i < SAMPLES; i++) {
+            float t = (float)i / (float)AUDIO_SAMPLE_RATE;
+            float env = (i < 160) ? (float)i / 160.0f : (float)(SAMPLES - i) / (float)(SAMPLES - 160);
+            int16_t s = (int16_t)(env * 8000.0f * sinf(2.0f * 3.14159f * 880.0f * t));
+            s_tick_pcm[i * 2]     = s;
+            s_tick_pcm[i * 2 + 1] = s;
+        }
+        s_tick_built = true;
     }
-    esp_codec_dev_write(spk_codec_dev, buf, sizeof(buf));
+    esp_codec_dev_write(spk_codec_dev, s_tick_pcm, sizeof(s_tick_pcm));
     vTaskDelete(NULL);
 }
 
@@ -566,7 +568,7 @@ void audio_play_success(void)
 
 // ── MP3 playback ─────────────────────────────────────────────────────────────
 
-#define MP3_READ_BUF_SIZE   2048
+#define MP3_READ_BUF_SIZE   16384   // larger reads = far fewer FATFS/SD transactions per song
 #define MP3_PCM_BUF_FRAMES  1152  // max frames per MP3 frame
 
 typedef struct {
@@ -713,11 +715,6 @@ static char *mp3_build_scroll_text(const char *title)
 }
 
 // ── Animation callbacks ───────────────────────────────────────────────────────
-static void musiclabel_anim_cb(void *obj, int32_t x)
-{
-    lv_obj_set_x((lv_obj_t *)obj, x);
-}
-
 static void anim_y_cb(void *obj, int32_t y)
 {
     lv_obj_set_y((lv_obj_t *)obj, y);
@@ -1049,22 +1046,6 @@ static void music_watchdog_cb(lv_timer_t *t)
     mp3_was_playing = mp3_is_playing;
 }
 
-static void play_pcm_callback(lv_event_t *e)
-{
-    if (pcm_file_path[0] == '\0') { ESP_LOGW(TAG, "PCM file not found"); return; }
-    if (is_playing) { ESP_LOGW(TAG, "Already playing"); return; }
-    is_playing = true;
-    xTaskCreate(audio_task, "audio_task", 4096, (void *)(uintptr_t)AUDIO_TYPE_PCM, 5, &audio_task_handle);
-}
-
-static void play_wav_callback(lv_event_t *e)
-{
-    if (wav_file_path[0] == '\0') { ESP_LOGW(TAG, "WAV file not found"); return; }
-    if (is_playing) { ESP_LOGW(TAG, "Already playing"); return; }
-    is_playing = true;
-    xTaskCreate(audio_task, "audio_task", 4096, (void *)(uintptr_t)AUDIO_TYPE_WAV, 5, &audio_task_handle);
-}
-
 static void create_ui(void)
 {
     ESP_LOGI(TAG, "Initializing SquareLine UI");
@@ -1113,19 +1094,8 @@ static void create_ui(void)
 
     lv_obj_set_size(GUI_Panel__home__panel_3, 60, 220);
 
-    // Memory label — hidden for now, re-enable by removing LV_OBJ_FLAG_HIDDEN
-    mem_label = lv_label_create(GUI_Screen__home);
-    lv_obj_set_style_text_font(mem_label, &lv_font_montserrat_12, LV_PART_MAIN);
-    lv_obj_set_style_text_color(mem_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(mem_label, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_align(mem_label, LV_ALIGN_BOTTOM_LEFT);
-    lv_obj_set_pos(mem_label, 2, -18);
-    lv_label_set_text(mem_label, "INT:--- PSRAM:---");
-    lv_obj_add_flag(mem_label, LV_OBJ_FLAG_HIDDEN); // hidden — remove to show
-    lv_timer_create(mem_label_cb, 1000, NULL);
-
-    lv_timer_create(music_watchdog_cb, 500, NULL);
-    lv_timer_create(clock_timer_cb, 1000, NULL);
+    s_music_watchdog_timer = lv_timer_create(music_watchdog_cb, 500, NULL);
+    s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
     music_update_display();
 
     // ── Skull logo touch target (transparent, covers logo area) ──────────────
@@ -1162,7 +1132,9 @@ static void create_ui(void)
     lv_obj_set_width(s_weather_overlay_lbl, 430);
     lv_obj_align(s_weather_overlay_lbl, LV_ALIGN_CENTER, 0, 0);
 
-    lv_timer_create(weather_overlay_cb, 500, NULL);
+    // 1 s cadence: banner latency is fine and this halves the idle wakeups the
+    // overlay's 6 state-fn poll cost (countdown text is whole seconds anyway).
+    s_weather_overlay_timer = lv_timer_create(weather_overlay_cb, 1000, NULL);
 
     // ── Video fade-in overlay — full screen black, hidden normally ────────────
     // After video ends, shown at full opacity then faded out to reveal home screen

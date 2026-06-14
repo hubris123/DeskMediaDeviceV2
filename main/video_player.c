@@ -385,8 +385,13 @@ static void fade_overlay_anim_cb(void *obj, int32_t v)
     if (v == LV_OPA_TRANSP) lv_obj_add_flag((lv_obj_t *)obj, LV_OBJ_FLAG_HIDDEN);
 }
 
+// Defined in main.c — resets the home-screen timers so they don't all fire at
+// once when LVGL resumes after a video (runs here, inside the LVGL task).
+extern void home_timers_reset_after_video(void);
+
 static void trigger_fade_in(void *arg)
 {
+    home_timers_reset_after_video();
     lv_obj_t *overlay = (lv_obj_t *)arg;
     lv_obj_clear_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_bg_opa(overlay, LV_OPA_COVER, 0);

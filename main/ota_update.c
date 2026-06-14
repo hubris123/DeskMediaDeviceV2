@@ -4,6 +4,7 @@
 #include "power_gate.h"
 
 #include <string.h>
+#include <stdio.h>
 #include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -338,6 +339,36 @@ static void show_no_update_dialog(const char *running, const char *latest)
     bsp_display_unlock();
 }
 
+// ── Version comparison ───────────────────────────────────────────────────────
+// Parse a leading "vMAJOR.MINOR.PATCH". The suffix git-describe adds for dev
+// builds ("-3-g1636431-dirty") is ignored — we only compare the release numbers.
+static void parse_semver(const char *s, int *mj, int *mn, int *pa)
+{
+    *mj = *mn = *pa = 0;
+    if (*s == 'v' || *s == 'V') s++;
+    sscanf(s, "%d.%d.%d", mj, mn, pa);
+}
+
+static bool tag_is_strictly_newer(const char *remote, const char *local)
+{
+    int rmj, rmn, rpa, lmj, lmn, lpa;
+    parse_semver(remote, &rmj, &rmn, &rpa);
+    parse_semver(local,  &lmj, &lmn, &lpa);
+    if (rmj != lmj) return rmj > lmj;
+    if (rmn != lmn) return rmn > lmn;
+    return rpa > lpa;
+}
+
+// git-describe appends "-<commits>-g<hash>[-dirty]" to any build that isn't an
+// exact tag. A dev build must never be auto-offered a "newer" release: the
+// published tag can be numerically higher (e.g. v0.2.1) yet built from an OLDER
+// code line than the uncommitted work, so installing it silently reverts it.
+// Cut a real tagged release to re-enable update offers.
+static bool version_is_dev_build(const char *v)
+{
+    return strchr(v, '-') != NULL;
+}
+
 // ── Evaluate a fetched release and act ───────────────────────────────────────
 // manual=true: user pressed "Check for updates" — ignore the snooze and always
 // give feedback (update prompt, or the "up to date" dialog). manual=false: the
@@ -359,10 +390,18 @@ static void ota_decide(esp_err_t fetch_ret, const char *tag, const char *url, bo
              tag, running, installed[0] ? installed : "none",
              pending[0] ? pending : "none", (int)manual);
 
-    bool is_update = strcmp(tag, running) != 0 &&
+    // Only offer a STRICTLY newer release, and never to an uncommitted dev
+    // build (a higher tag number can still be older code — would downgrade).
+    bool dev_build = version_is_dev_build(running);
+    bool is_update = tag_is_strictly_newer(tag, running) &&
+                     !dev_build &&
                      strcmp(tag, installed) != 0 &&
                      strcmp(tag, pending) != 0;
     if (!is_update) {
+        if (dev_build && tag_is_strictly_newer(tag, running)) {
+            ESP_LOGI(TAG, "Dev build (%s) — not offering tag %s (would downgrade work)",
+                     running, tag);
+        }
         if (manual) show_no_update_dialog(running, tag);
         return;
     }
