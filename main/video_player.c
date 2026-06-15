@@ -84,6 +84,15 @@ static volatile bool s_prod_stop    = false;
 static volatile bool s_prod_running = false;
 static FILE *s_prod_file = NULL;
 
+// Clip sidecar audio, loaded in-line by the SAME producer in the gaps when the video
+// ring is full (one SD reader => no contention). The mp3 task (pinned to PIPE_CORE
+// for same-core coherence) decodes straight from s_audio_buf. NULL => stream fallback.
+static uint8_t          *s_audio_buf  = NULL;   // whole-file audio buffer
+static size_t            s_audio_cap  = 0;      // allocated size = mp3 file size
+static volatile uint64_t s_audio_wr   = 0;      // bytes loaded so far (grows)
+static volatile bool     s_audio_eof  = false;  // whole mp3 loaded
+static FILE             *s_audio_file = NULL;
+
 // Bumper — kept resident in a right-sized PSRAM slot, loaded once at init
 static uint8_t *bumper_buf      = NULL;
 static size_t   bumper_buf_len  = 0;
@@ -100,7 +109,6 @@ static int   fb_idx = 0;
 static bool video_player_running = false;
 
 static void video_player_task(void *arg);
-static void video_cleanup_task(void *arg);
 static void video_producer_task(void *arg);
 static void fade_overlay_anim_cb(void *obj, int32_t v);
 static void trigger_fade_in(void *arg);
@@ -110,10 +118,11 @@ static uint8_t *load_mjpeg_alloc(const char *path, size_t *out_len);
 static void shuffle_playlist(void);
 static int  find_frame(const uint8_t *buf, size_t buf_len, size_t offset,
                        size_t *frame_start, size_t *frame_len);
-static bool video_pipeline_start(const char *path);
+static bool video_pipeline_start(const char *path, const char *mp3_path);
 static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg);
 
 extern void video_mp3_play(const char *path, bool preload);
+extern void video_mp3_play_membuf(const uint8_t *buf, volatile uint64_t *wr, volatile bool *eof);
 extern void video_mp3_stop(void);
 extern bool video_mp3_is_playing(void);
 
@@ -325,19 +334,39 @@ static void video_producer_task(void *arg)
     (void)arg;
     s_prod_running = true;
     while (!s_prod_stop) {
+        // Video has priority: keep the ring full.
         size_t avail = (size_t)(s_wr - s_rd);
         size_t freeb = RING_SIZE - avail;
-        if (freeb <= PIPE_CHUNK) { vTaskDelay(pdMS_TO_TICKS(3)); continue; }  // ring full -> wait
-        size_t widx   = (size_t)(s_wr % RING_SIZE);
-        size_t contig = RING_SIZE - widx;        // space before the physical wrap
-        size_t want   = freeb - 1;               // keep 1 byte free (full/empty disambiguation)
-        if (want > contig)     want = contig;
-        if (want > PIPE_CHUNK) want = PIPE_CHUNK;
-        size_t n = fread(ring_buf + widx, 1, want, s_prod_file);
-        __sync_synchronize();                    // data committed before advancing the write index
-        s_wr += n;
-        if (n < want) { s_prod_eof = true; break; }   // short read = EOF
+        if (freeb > PIPE_CHUNK && !s_prod_eof) {
+            size_t widx   = (size_t)(s_wr % RING_SIZE);
+            size_t contig = RING_SIZE - widx;        // space before the physical wrap
+            size_t want   = freeb - 1;               // keep 1 byte free (full/empty disambiguation)
+            if (want > contig)     want = contig;
+            if (want > PIPE_CHUNK) want = PIPE_CHUNK;
+            size_t n = fread(ring_buf + widx, 1, want, s_prod_file);
+            __sync_synchronize();                    // data committed before advancing the write index
+            s_wr += n;
+            if (n < want) s_prod_eof = true;         // short read = video EOF
+            continue;
+        }
+        // Video ring full (or done): spend the spare SD time loading the sidecar audio.
+        if (!s_audio_eof) {
+            size_t want = s_audio_cap - (size_t)s_audio_wr;
+            if (want > PIPE_CHUNK) want = PIPE_CHUNK;
+            size_t n = fread(s_audio_buf + s_audio_wr, 1, want, s_audio_file);
+            __sync_synchronize();                    // bytes committed before advancing the count
+            s_audio_wr += n;
+            if (n < want || s_audio_wr >= s_audio_cap) {
+                s_audio_eof = true;                  // whole mp3 in PSRAM
+                fclose(s_audio_file); s_audio_file = NULL;
+            }
+            continue;
+        }
+        // Both video ring full and audio fully loaded.
+        if (s_prod_eof) break;                       // clip fully read — done
+        vTaskDelay(pdMS_TO_TICKS(3));                // wait for the consumer to drain
     }
+    if (s_audio_file) { fclose(s_audio_file); s_audio_file = NULL; }  // reaped before audio EOF
     s_prod_running = false;
     vTaskDelete(NULL);
 }
@@ -366,12 +395,31 @@ static bool ring_find_frame(uint64_t *fs, size_t *flen)
 
 // Open the clip and start the producer filling the ring. The bumper plays while
 // it prefills, so by the time we consume, the ring is full.
-static bool video_pipeline_start(const char *path)
+static bool video_pipeline_start(const char *path, const char *mp3_path)
 {
     s_prod_file = fopen(path, "rb");
     if (!s_prod_file) { ESP_LOGE(TAG, "Pipeline: cannot open %s", path); return false; }
     s_wr = s_rd = 0;
     s_prod_eof = s_prod_stop = false;
+
+    // Set up in-line sidecar loading: open the mp3 and size a PSRAM buffer for it.
+    // The producer fills it in the gaps (above). On any failure leave s_audio_buf
+    // NULL and mark eof so the producer skips it; the consumer streams the mp3 instead.
+    s_audio_buf = NULL; s_audio_cap = 0; s_audio_wr = 0; s_audio_eof = false; s_audio_file = NULL;
+    FILE *af = fopen(mp3_path, "rb");
+    if (af) {
+        fseek(af, 0, SEEK_END);
+        long asz = ftell(af);
+        fseek(af, 0, SEEK_SET);
+        if (asz > 0) {
+            s_audio_buf = heap_caps_malloc((size_t)asz, MALLOC_CAP_SPIRAM);
+            if (s_audio_buf) { s_audio_cap = (size_t)asz; s_audio_file = af; }
+        }
+        if (!s_audio_buf) { fclose(af); s_audio_eof = true; }   // can't buffer -> stream fallback
+    } else {
+        s_audio_eof = true;                                     // no sidecar -> nothing to load
+    }
+
     xTaskCreatePinnedToCore(video_producer_task, "vid_prod", 4096, NULL, 5, NULL, PIPE_CORE);
     return true;
 }
@@ -417,7 +465,11 @@ static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg)
                 esp_lv_adapter_dummy_draw_blit(g_lv_disp, 0, 0, DISP_W, DISP_H, target_fb, true);
                 fb_idx++;
                 if (!audio_started) {
-                    video_mp3_play(mp3_path, true);   // clip sidecar: preload (no mid-clip SD contention)
+                    // Decode straight from the producer-filled PSRAM buffer (no SD
+                    // contention, no start delay). If that buffer couldn't be set up,
+                    // fall back to streaming the mp3 from SD.
+                    if (s_audio_buf) video_mp3_play_membuf(s_audio_buf, &s_audio_wr, &s_audio_eof);
+                    else             video_mp3_play(mp3_path, false);
                     audio_started = true;
                     play_t0 = esp_timer_get_time();   // anchor video clock to audio start
                 }
@@ -490,13 +542,6 @@ static void trigger_fade_in(void *arg)
     lv_anim_start(&a);
 }
 
-static void video_cleanup_task(void *arg)
-{
-    (void)arg;
-    video_mp3_stop();
-    vTaskDelete(NULL);
-}
-
 static void video_player_task(void *arg)
 {
     (void)arg;
@@ -519,9 +564,10 @@ static void video_player_task(void *arg)
     mp3_path[sizeof(mp3_path) - 1] = '\0';
     { char *ext = strrchr(mp3_path, '.'); if (ext) strcpy(ext, ".mp3"); }
 
-    // Start streaming the clip into the ring NOW; the bumper masks the prefill,
-    // so by the time it finishes the ring is full and the clip starts instantly.
-    bool started = video_pipeline_start(video_playlist[track_idx]);
+    // Start streaming the clip into the ring NOW; the bumper masks the prefill, so by
+    // the time it finishes the ring is full and the clip starts instantly. The producer
+    // also loads the sidecar mp3 into PSRAM during these idle-SD gaps (single reader).
+    bool started = video_pipeline_start(video_playlist[track_idx], mp3_path);
 
     if (bumper_available) {
         // Render first bumper frame, then start audio — keeps video/audio in sync
@@ -547,7 +593,20 @@ static void video_player_task(void *arg)
             waited += 20;
         }
         if (waited) ESP_LOGI(TAG, "Held last frame %d ms for audio tail", waited);
+        // Small post-roll: hold the last frame a beat longer after the audio ends so
+        // the clip doesn't cut to the home fade abruptly (also lets the codec drain
+        // its last buffered samples — the PA is still on through this).
+        const int LAST_FRAME_POSTROLL_MS = 100;
+        vTaskDelay(pdMS_TO_TICKS(LAST_FRAME_POSTROLL_MS));
     }
+
+    // The mp3 decoded straight from s_audio_buf, so it must be stopped before we free
+    // the buffer. The tail hold normally already waited for it to finish; video_mp3_stop
+    // is a no-op then, and forces a stop in the capped case. Done synchronously while
+    // video_player_running is still true, so the next clip can't re-allocate the buffer
+    // underneath us.
+    video_mp3_stop();
+    if (s_audio_buf) { free(s_audio_buf); s_audio_buf = NULL; }
 
     // Advance playlist
     video_current_idx = (track_idx + 1) % video_track_count;
@@ -563,9 +622,6 @@ static void video_player_task(void *arg)
     if (g_video_fade_overlay) {
         lv_async_call(trigger_fade_in, g_video_fade_overlay);
     }
-
-    // Stop any remaining audio in background
-    xTaskCreate(video_cleanup_task, "vid_cleanup", 4096, NULL, 5, NULL);
 
     ESP_LOGI(TAG, "Video player done");
     vTaskDelete(NULL);

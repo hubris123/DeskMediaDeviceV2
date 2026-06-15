@@ -574,9 +574,18 @@ void audio_play_success(void)
 typedef struct {
     char path[256];
     bool preload;   // true: slurp whole file into PSRAM up front (no SD reads during
-                    // decode — used for the video sidecar so it can't contend with
-                    // the video producer's SD reads). false: stream 16 KB at a time.
+                    // decode). false: stream 16 KB at a time (music). Ignored if ext_buf set.
+    // ext_buf set => decode straight from a borrowed PSRAM buffer that the video
+    // producer is filling in-line (single SD reader => zero contention). ext_wr is
+    // the bytes-loaded-so-far counter (grows); ext_eof flips when the whole mp3 is in.
+    const uint8_t     *ext_buf;
+    volatile uint64_t *ext_wr;
+    volatile bool     *ext_eof;
 } mp3_play_args_t;
+
+// When decoding from a still-filling buffer, keep at least this many bytes ahead of
+// the decoder before pulling a frame (a comfortable margin over one MP3 frame).
+#define MP3_FRONTIER_MIN  MP3_READ_BUF_SIZE
 
 static void mp3_task(void *arg)
 {
@@ -584,22 +593,31 @@ static void mp3_task(void *arg)
     if (spk_codec_dev == NULL) { free(args); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
     bool preload = args->preload;
-    FILE *f = fopen(args->path, "rb");
+    const uint8_t     *ext_buf = args->ext_buf;   // borrowed filling buffer (NULL => from file)
+    volatile uint64_t *ext_wr  = args->ext_wr;
+    volatile bool     *ext_eof = args->ext_eof;
+    bool ext = (ext_buf != NULL);
+
+    FILE *f = NULL;
+    if (!ext) {
+        f = fopen(args->path, "rb");
+        if (!f) { free(args); ESP_LOGW("MP3", "File not found"); mp3_is_playing = false; vTaskDelete(NULL); return; }
+    }
     free(args);
-    if (!f) { ESP_LOGW("MP3", "File not found"); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
     HMP3Decoder decoder = MP3InitDecoder();
-    if (!decoder) { fclose(f); mp3_is_playing = false; vTaskDelete(NULL); return; }
+    if (!decoder) { if (f) fclose(f); mp3_is_playing = false; vTaskDelete(NULL); return; }
 
-    // Audio source. preload: slurp the whole file into PSRAM once, then decode from
-    // memory — zero SD reads during playback, so it can't contend with the video
-    // producer's SD reads (the cause of the q:v sidecar pop). streaming: refill a
-    // small window from SD as we decode (used for music — full songs are large and
-    // we don't want a ~1.5 s load delay on Play).
-    uint8_t *read_buf = NULL;   // streaming refill window (NULL when preloading)
-    uint8_t *file_buf = NULL;   // whole-file PSRAM buffer (NULL when streaming)
+    // Audio source — three modes:
+    //   ext: decode straight from the PSRAM buffer the video producer is filling
+    //        in-line (single SD reader => no contention; no start delay).
+    //   preload: slurp the whole file into PSRAM once, then decode from memory.
+    //   streaming: refill a small window from SD as we go (music — big files, and
+    //        we don't want a ~1.5 s load delay on Play).
+    uint8_t *read_buf = NULL;   // streaming refill window
+    uint8_t *file_buf = NULL;   // whole-file PSRAM buffer (preload)
     int      file_len = 0;
-    if (preload) {
+    if (preload && !ext) {
         fseek(f, 0, SEEK_END);
         long sz = ftell(f);
         fseek(f, 0, SEEK_SET);
@@ -616,10 +634,11 @@ static void mp3_task(void *arg)
             if (f) fseek(f, 0, SEEK_SET);
         }
     }
-    if (!preload) read_buf = malloc(MP3_READ_BUF_SIZE);
+    bool streaming = !ext && !preload;
+    if (streaming) read_buf = malloc(MP3_READ_BUF_SIZE);
 
     short *pcm_buf = malloc(MP3_PCM_BUF_FRAMES * 2 * sizeof(short));
-    if ((!preload && !read_buf) || !pcm_buf) {
+    if ((streaming && !read_buf) || !pcm_buf) {
         free(read_buf); free(pcm_buf); free(file_buf);
         MP3FreeDecoder(decoder); if (f) fclose(f);
         mp3_is_playing = false; vTaskDelete(NULL); return;
@@ -641,8 +660,9 @@ static void mp3_task(void *arg)
 
     int bytes_in_buf;
     uint8_t *read_ptr;
-    if (preload) { read_ptr = file_buf; bytes_in_buf = file_len; }  // whole file already in RAM
-    else         { read_ptr = read_buf; bytes_in_buf = 0; }         // filled from SD in the loop
+    if (ext)          { read_ptr = (uint8_t *)ext_buf; bytes_in_buf = 0; }  // grows as producer loads
+    else if (preload) { read_ptr = file_buf;           bytes_in_buf = file_len; }
+    else              { read_ptr = read_buf;           bytes_in_buf = 0; }   // filled from SD in the loop
     bool pa_enabled = false;
 
     while (!mp3_stop_requested) {
@@ -655,8 +675,19 @@ static void mp3_task(void *arg)
         }
         if (mp3_stop_requested) break;
 
-        // Refill buffer from SD (streaming only; preload already holds the whole file)
-        if (!preload) {
+        if (ext) {
+            // Decode from the producer-filled buffer: available = loaded - consumed.
+            // Wait at the load frontier if the producer hasn't pulled far enough ahead
+            // yet (only happens at the very start; it fills far faster than we decode).
+            size_t consumed = (size_t)(read_ptr - ext_buf);
+            bytes_in_buf = (int)((size_t)(*ext_wr) - consumed);
+            if (bytes_in_buf < MP3_FRONTIER_MIN && !*ext_eof) {
+                vTaskDelay(pdMS_TO_TICKS(5));
+                continue;
+            }
+            if (bytes_in_buf <= 0) break;                // fully loaded and consumed — done
+        } else if (streaming) {
+            // Refill window from SD (preload already holds the whole file).
             int space = MP3_READ_BUF_SIZE - bytes_in_buf;
             if (space > 0 && read_ptr != read_buf) {
                 memmove(read_buf, read_ptr, bytes_in_buf);
@@ -672,6 +703,7 @@ static void mp3_task(void *arg)
         // Find sync word
         int offset = MP3FindSyncWord(read_ptr, bytes_in_buf);
         if (offset < 0) {
+            if (ext)     { if (*ext_eof) break; vTaskDelay(pdMS_TO_TICKS(5)); continue; }
             if (preload) break;                          // whole file consumed — done
             bytes_in_buf = 0; read_ptr = read_buf; continue;  // streaming: drop partial, refill
         }
@@ -975,7 +1007,28 @@ void video_mp3_play(const char *path, bool preload)
     strncpy(args->path, path, sizeof(args->path) - 1);
     args->path[sizeof(args->path) - 1] = '\0';
     args->preload = preload;
+    args->ext_buf = NULL;
     xTaskCreate(mp3_task, "vid_mp3", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle);
+}
+
+// Play the clip sidecar straight from the PSRAM buffer the video producer is filling
+// in-line — no separate SD reads, so it can't contend with the producer (kills both
+// the q:v pop and the long-clip audio-start delay). Pinned to CPU1 (PIPE_CORE) so it
+// shares a cache domain with the producer/consumer that own the buffer (coherence).
+void video_mp3_play_membuf(const uint8_t *buf, volatile uint64_t *wr, volatile bool *eof)
+{
+    mp3_stop();
+    if (spk_codec_dev == NULL) return;
+    mp3_stop_requested = false;
+    mp3_is_playing = true;
+    mp3_play_args_t *args = malloc(sizeof(mp3_play_args_t));
+    if (!args) { mp3_is_playing = false; return; }
+    args->path[0] = '\0';
+    args->preload = false;
+    args->ext_buf = buf;
+    args->ext_wr  = wr;
+    args->ext_eof = eof;
+    xTaskCreatePinnedToCore(mp3_task, "vid_mp3", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle, 1);
 }
 
 void video_mp3_stop(void)
@@ -1002,6 +1055,7 @@ static void mp3_play_current(void)
     strncpy(args->path, mp3_playlist[mp3_current_track], sizeof(args->path) - 1);
     args->path[sizeof(args->path) - 1] = '\0';
     args->preload = false;   // music: stream (full songs are large; avoids ~1.5 s load delay on play)
+    args->ext_buf = NULL;
     xTaskCreate(mp3_task, "mp3_play", 8192, args, MP3_TASK_PRIORITY, &mp3_task_handle);
     ESP_LOGI(TAG, "Playing track %d: %s", mp3_current_track, args->path);
 }
@@ -1078,6 +1132,7 @@ void audio_play_mp3(const char *path)
     strncpy(args->path, path, sizeof(args->path) - 1);
     args->path[sizeof(args->path)-1] = '\0';
     args->preload = false;   // short fx clip: stream
+    args->ext_buf = NULL;
     xTaskCreate(mp3_task, "mp3_play", 8192, args, MP3_TASK_PRIORITY, NULL);
 }
 
