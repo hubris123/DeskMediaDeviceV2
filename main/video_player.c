@@ -113,8 +113,9 @@ static int  find_frame(const uint8_t *buf, size_t buf_len, size_t offset,
 static bool video_pipeline_start(const char *path);
 static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg);
 
-extern void video_mp3_play(const char *path);
+extern void video_mp3_play(const char *path, bool preload);
 extern void video_mp3_stop(void);
+extern bool video_mp3_is_playing(void);
 
 // ── Load an MJPEG file into a freshly-allocated, right-sized PSRAM buffer ─────
 // Used for the resident bumper (was a fixed 5 MB slot for an ~1.8 MB file).
@@ -274,7 +275,6 @@ static void play_mjpeg_from(const uint8_t *mjpeg_data, size_t mjpeg_len,
     int64_t t0 = esp_timer_get_time();
     while (find_frame(mjpeg_data, mjpeg_len, offset, &frame_start, &frame_len)) {
         frame_count++;
-        int64_t t_start = esp_timer_get_time();
         void *target_fb = lcd_fb[fb_idx % CONFIG_BSP_LCD_DPI_BUFFER_NUMS];
         uint32_t out_size = 0;
         esp_err_t err = jpeg_decoder_process(
@@ -287,9 +287,12 @@ static void play_mjpeg_from(const uint8_t *mjpeg_data, size_t mjpeg_len,
             fb_idx++;
         }
         offset = frame_start + frame_len;
-        int64_t elapsed_ms = (esp_timer_get_time() - t_start) / 1000;
-        int32_t delay_ms   = FRAME_INTERVAL_MS - (int32_t)elapsed_ms;
-        if (delay_ms > 1) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        // Absolute-timeline pacing (see video_pipeline_run): frame N is due at
+        // t0 + N*FRAME_INTERVAL; self-corrects instead of letting per-frame overruns
+        // accumulate. (No audio on the bumper, so this just keeps its duration honest.)
+        int64_t target_us = t0 + (int64_t)frame_count * FRAME_INTERVAL_MS * 1000;
+        int64_t delay_us  = target_us - esp_timer_get_time();
+        if (delay_us > 1000) vTaskDelay(pdMS_TO_TICKS((int)(delay_us / 1000)));
     }
     ESP_LOGI(TAG, "play_mjpeg: %d frames in %lld ms", frame_count, (esp_timer_get_time()-t0)/1000);
 }
@@ -385,12 +388,12 @@ static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg)
     int  frame_count = 0, fps_frames = 0;
     int64_t t0 = esp_timer_get_time();
     int64_t last_telem = t0;
+    int64_t play_t0 = 0;   // video-clock anchor, set at audio start (absolute pacing)
 
     while (!s_prod_stop) {
         uint64_t fs; size_t flen;
         if (ring_find_frame(&fs, &flen)) {
             underrun_logged = false;
-            int64_t t_start = esp_timer_get_time();
             size_t pidx = (size_t)(fs % RING_SIZE);
             const uint8_t *fp;
             if (flen > FRAME_ASM_SIZE) {                 // pathological frame — skip
@@ -413,7 +416,11 @@ static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg)
             if (err == ESP_OK) {
                 esp_lv_adapter_dummy_draw_blit(g_lv_disp, 0, 0, DISP_W, DISP_H, target_fb, true);
                 fb_idx++;
-                if (!audio_started) { video_mp3_play(mp3_path); audio_started = true; }
+                if (!audio_started) {
+                    video_mp3_play(mp3_path, true);   // clip sidecar: preload (no mid-clip SD contention)
+                    audio_started = true;
+                    play_t0 = esp_timer_get_time();   // anchor video clock to audio start
+                }
             }
             s_rd = fs + flen;                            // consume through end of frame
             frame_count++; fps_frames++;
@@ -427,9 +434,18 @@ static void video_pipeline_run(const char *mp3_path, jpeg_decode_cfg_t *dec_cfg)
                 last_telem = now; fps_frames = 0;
             }
 
-            int64_t elapsed_ms = (now - t_start) / 1000;
-            int32_t delay_ms   = FRAME_INTERVAL_MS - (int32_t)elapsed_ms;
-            if (delay_ms > 1) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+            // Pace against an ABSOLUTE timeline anchored at audio start: frame N is
+            // due at play_t0 + N*FRAME_INTERVAL, so the average rate is pinned to
+            // 20 fps and a long frame just shortens the next nap instead of slipping
+            // permanently. The old "50ms minus this frame's decode time" scheme let
+            // every overrun (and every vTaskDelay overshoot) accumulate, so the video
+            // drifted behind the audio's fixed 32 kHz codec clock. When already behind
+            // the target we don't nap — we proceed immediately to catch back up.
+            if (play_t0) {
+                int64_t target_us = play_t0 + (int64_t)frame_count * FRAME_INTERVAL_MS * 1000;
+                int64_t delay_us  = target_us - esp_timer_get_time();
+                if (delay_us > 1000) vTaskDelay(pdMS_TO_TICKS((int)(delay_us / 1000)));
+            }
             continue;
         }
         if (s_prod_eof) break;                           // producer done + no frame left
@@ -510,7 +526,7 @@ static void video_player_task(void *arg)
     if (bumper_available) {
         // Render first bumper frame, then start audio — keeps video/audio in sync
         size_t bumper_after_first = render_first_frame(bumper_buf, bumper_buf_len, &dec_cfg);
-        video_mp3_play(BUMPER_MP3);
+        video_mp3_play(BUMPER_MP3, false);   // bumper: stream (starts while producer fills the ring)
         play_mjpeg_from(bumper_buf, bumper_buf_len, &dec_cfg, bumper_after_first);
         video_mp3_stop();
     }
@@ -519,6 +535,18 @@ static void video_player_task(void *arg)
         ESP_LOGI(TAG, "Playing: %s", video_playlist[track_idx]);
         video_pipeline_run(mp3_path, &dec_cfg);
         ESP_LOGI(TAG, "Track done");
+        // The sidecar mp3 is often slightly longer than the video's frames (content
+        // length mismatch — the old slow ~19fps playback masked it; correct 20fps
+        // pacing now ends the video first). Hold the last frame until the audio
+        // finishes so the final words aren't chopped. Capped so a much-longer or
+        // stuck audio can't freeze the UI for long.
+        const int AUDIO_TAIL_MAX_MS = 3000;
+        int waited = 0;
+        while (video_mp3_is_playing() && waited < AUDIO_TAIL_MAX_MS) {
+            vTaskDelay(pdMS_TO_TICKS(20));
+            waited += 20;
+        }
+        if (waited) ESP_LOGI(TAG, "Held last frame %d ms for audio tail", waited);
     }
 
     // Advance playlist
