@@ -108,4 +108,14 @@ const char *wmo_get_description(int wmo_code);
  */
 bool wmo_is_nighttime(uint32_t timestamp, int timezone_offset);
 
+/**
+ * Determine nighttime using NOAA solar elevation algorithm.
+ * Returns true when the sun is below the horizon at the given location.
+ * No API needed - pure math from lat/lon + UTC timestamp.
+ * @param timestamp: Unix UTC timestamp (must be SNTP-synced)
+ * @param lat_deg: Latitude in degrees (positive = North)
+ * @param lon_deg: Longitude in degrees (positive = East, negative = West)
+ */
+bool solar_is_night(uint32_t timestamp, float lat_deg, float lon_deg);
+
 #endif // WMO_ICON_MAP_H

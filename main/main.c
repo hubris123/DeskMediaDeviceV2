@@ -1155,12 +1155,64 @@ static void music_watchdog_cb(lv_timer_t *t)
     mp3_was_playing = mp3_is_playing;
 }
 
+// Optional SD-card home background: /sdcard/background.png (or .jpg).
+// Raw encoded bytes are kept resident in PSRAM; the esp_lv_decoder registered
+// by the LVGL adapter decodes them when the image source is set. Falls back
+// to the embedded SquareLine background when no file is present.
+static lv_image_dsc_t s_sd_bg_dsc;
+
+static const void *load_sd_background(void)
+{
+    static const char *candidates[] = {"/sdcard/background.png", "/sdcard/background.jpg"};
+    FILE *f = NULL;
+    const char *path = NULL;
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        f = fopen(candidates[i], "rb");
+        if (f) { path = candidates[i]; break; }
+    }
+    if (!f) return NULL;
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (size <= 0 || size > 4 * 1024 * 1024) {  // sanity cap: 4MB encoded
+        ESP_LOGW(TAG, "SD background %s bad size %ld — using embedded", path, size);
+        fclose(f);
+        return NULL;
+    }
+
+    uint8_t *buf = heap_caps_malloc((size_t)size, MALLOC_CAP_SPIRAM);
+    if (!buf) {
+        ESP_LOGW(TAG, "SD background: PSRAM alloc %ld B failed — using embedded", size);
+        fclose(f);
+        return NULL;
+    }
+
+    size_t rd = fread(buf, 1, (size_t)size, f);
+    fclose(f);
+    if (rd != (size_t)size) {
+        ESP_LOGW(TAG, "SD background: short read %zu/%ld — using embedded", rd, size);
+        heap_caps_free(buf);
+        return NULL;
+    }
+
+    memset(&s_sd_bg_dsc, 0, sizeof(s_sd_bg_dsc));
+    s_sd_bg_dsc.header.cf = LV_COLOR_FORMAT_RAW_ALPHA;
+    s_sd_bg_dsc.data      = buf;
+    s_sd_bg_dsc.data_size = (uint32_t)size;
+
+    ESP_LOGI(TAG, "SD background loaded: %s (%ld B)", path, size);
+    return &s_sd_bg_dsc;
+}
+
 static void create_ui(void)
 {
     ESP_LOGI(TAG, "Initializing SquareLine UI");
     GUI_init();
 
-    lv_obj_set_style_bg_image_src(GUI_Screen__home, &upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
+    const void *bg = load_sd_background();
+    lv_obj_set_style_bg_image_src(GUI_Screen__home,
+        bg ? bg : (const void *)&upload_hclbg1_52bba57ce173452fadd7595a14167a99_png, 0);
     ui_set_default_weather();
     settings_ui_init();
 
@@ -1455,7 +1507,18 @@ void app_main(void)
         disp.current_humidity  = (int)api_data.current_humidity;
         disp.current_precip_prob = api_data.current_precip_prob;
         disp.current_wmo       = api_data.current_weather_code;
-        disp.is_night          = (api_data.current_is_day == 0);
+        // Day/night via NOAA solar elevation math (lat/lon + UTC timestamp).
+        // Accurate for any location/season including Las Vegas summer (sunset ~8 PM).
+        // Falls back to the NWS obs icon flag only before SNTP syncs or lat/lon arrive.
+        if (api_data.current_time > 1600000000 &&
+            (api_data.latitude != 0.0f || api_data.longitude != 0.0f)) {
+            disp.is_night = solar_is_night(api_data.current_time,
+                                           api_data.latitude, api_data.longitude);
+        } else {
+            disp.is_night = (api_data.current_is_day == 0);
+        }
+        ESP_LOGI(TAG, "Day/night: is_night=%d (lat=%.4f lon=%.4f obs_is_day=%d)",
+                 disp.is_night, api_data.latitude, api_data.longitude, api_data.current_is_day);
         disp.wifi_connected    = wifi_manager_is_connected();
 
         // Wind string e.g. "9SE"

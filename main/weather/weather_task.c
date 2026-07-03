@@ -68,6 +68,8 @@ static void do_obs_fetch(void)
 
     snprintf(tmp.city,  sizeof(tmp.city),  "%s", g_state.location.city);
     snprintf(tmp.state, sizeof(tmp.state), "%s", g_state.location.state);
+    tmp.latitude  = g_state.location.latitude;
+    tmp.longitude = g_state.location.longitude;
 
     if (nws_fetch_observations(&g_state.grid, &tmp) != ESP_OK) {
         ESP_LOGW(TAG, "Obs fetch failed");
